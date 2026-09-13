@@ -1,0 +1,170 @@
+Projekt renderera Vulkan -
+
+- renderer jest zorientowany na mobilne gpu qualcomm adreno - w szczególności telefony
+- celem renderera jest wygenerowanie maksymalnej ilości geometrii ( i w późniejszym etapie efektów ) z jak najwyższą
+szybkością. Zastosowane zostaną metody optymalizacji kodu CPU znane z HFT + multithreading + optymalizacja GPU 
+- Sprawdzę też co można zrobić jako compute shacer a co lepiej robić na CPU
+- Dodatkowo będę dokumentować swoją pracę i wrzucać ją na Linked-in
+
+- Docelowo - generować ogromną geometrię na CPU używając HFT itp dla szanghaju 
+
+Renderer iteracja 1:
+
+1) Podstawowy renderer w Vulkanie -
+  - 1 ) okno, perspektywa, poruszanie się itp
+  - 2 ) generujemy cube + plane pod cube
+  - 3 ) dodajemy źródło światła i światło rzuca cień
+
+2) Dodanie kodu CPU 
+  - Python - przerobienie danych z OSM ( albo nawet i C++, zobaczyć jak szybko damy radę ) 
+  - Importowanie danych z OSM
+  - Samplowanie Footprintów i w oparciu o footprinty itp generowanie geometrii
+
+
+
+ECS - Entity Component System 
+
+- 1) Entity - jest to obiekt w świecie
+- 2) Component - do obiektów przypisywane są componenty. Componenty zawierają surowe dane - nie zawierają żadnej logiki - np położenie czy inne
+- 3) System - tylko i wyłącznie logika - np system prosi o wszystkie obiekty które mają komponent "położenie" i przetwarza błyskawicznie wszystkie w jednej pętli
+( ok ale jak zapewnić że wszystkie obiekty będą obok siebie w pamięci ? )
+
+najpierw tworzymy Componenty
+position
+energy
+health
+money
+
+później tworzymy obiekty
+człowiek
+	- position
+	- energy
+	- money
+pies
+	- position
+	- energy
+
+i jeśli dobrze rozumiem wszystkie position trafiają do array Positions, wszystkie energy trafiają do energies itp
+
+- Tak -tworzymy globalną pulę componentów i po niej iterujemy
+
+- system
+- Iteruje przez np array Positions i wykonuje logikę dla wszystkich pozycji
+
+                                    Dokładnie tutaj zaczyna się najciekawsza część ECS. Dobry ECS zazwyczaj NIE robi tego:
+                                    for (Entity E : AllEntities)
+                                    {
+                                        if (E.Has<Position>())
+                                        {
+                                            ...
+                                        }
+                                    }
+                                    Bo przy milionie entity oznaczałoby to milion testów, nawet jeśli Position ma tylko 10 000 z nich. 
+                                    Zamiast tego dane są przechowywane tak, żeby system od razu iterował po tych komponentach, które go interesują.
+                                    Najprostszy wariant to osobne, zwarte pule komponentów.
+                                    Plik: World.h
+                                    using Entity = uint32_t;
+
+                                    struct Position
+                                    {
+                                        float X;
+                                        float Y;
+                                    };
+
+                                    struct Velocity
+                                    {
+                                        float X;
+                                        float Y;
+                                    };
+
+                                    struct Energy
+                                    {
+                                        float Current;
+                                        float BurnRate;
+                                    };
+
+                                    struct World
+                                    {
+                                        std::vector<Position> Positions;
+                                        std::vector<Velocity> Velocities;
+                                        std::vector<Energy> Energies;
+                                    };
+
+                                    Wtedy system, który potrzebuje tylko Energy, może robić po prostu:
+                                    Plik: EnergySystem.cpp
+
+                                    for (Energy& EnergyComponent : World.Energies)
+                                    {
+                                        EnergyComponent.Current -= EnergyComponent.BurnRate;
+                                    }
+
+                                    CPU widzi:
+                                    Energy Energy Energy Energy Energy Energy
+                                    ^^^^^^ ^^^^^^ ^^^^^^ ^^^^^^ ^^^^^^
+
+                                    i leci po ciągłej pamięci.
+                                    To jest ekstremalnie cache-friendly.
+                                    Problem pojawia się jednak, gdy system potrzebuje dwóch komponentów jednocześnie:
+                                    Position + Velocity
+                                    Nie możesz po prostu zakładać:
+
+                                    Positions[17]
+                                    Velocities[17]
+
+                                    że oba należą do tego samego Entity.
+                                    Dlatego komponent pool zwykle trzyma też informację, do którego Entity należy element.
+                                    Na przykład:
+
+                                    Positions
+
+                                    dense index     Entity       Position
+                                    -----------------------------------------
+                                    0               15           {10,20}
+                                    1               728          {40,12}
+                                    2               91           {100,5}
+                                    3               7            {22,31}
+
+                                    Czyli:
+
+                                    std::vector<Position> Positions;
+                                    std::vector<Entity> PositionEntities;
+
+                                    Ale potrzebujesz też szybkiego:
+
+                                    Entity 91 -> gdzie jest jego Position?
+
+                                    I tutaj pojawia się sparse set.
+
+                                    Sparse set
+
+                                    Masz dwie tablice:
+
+                                    Dense:
+                                    index:      0     1     2     3
+                                    Entity:    15   728    91     7
+                                    Position:  P15  P728   P91    P7
+
+                                    oraz:
+
+                                    Sparse:
+
+                                    Entity ID     dense index
+                                    7        ->   3
+                                    15       ->   0
+                                    91       ->   2
+                                    728      ->   1
+
+                                    Czyli sprawdzenie:
+
+                                    HasPosition(Entity 91)
+                                    nie wymaga szukania.
+                                    Robisz mniej więcej:
+                                    DenseIndex = Sparse[91];
+                                    i masz:
+                                    2
+
+                                    czyli:
+                                    Positions[2]
+                                    To jest O(1).
+
+                                    CO TO JEST DENSE INDEX ? !
