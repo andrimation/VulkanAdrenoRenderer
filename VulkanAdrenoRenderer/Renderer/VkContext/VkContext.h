@@ -1,29 +1,13 @@
 # pragma once
 
-#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS  
-
-#if defined(__INTELLISENSE__) || !defined(USE_CPP20_MODULES)
-#include <vulkan/vulkan_raii.hpp>
-#else
-import vulkan_hpp;
-#endif
-
-// Enablujemy Validation layers
-const std::vector<char const*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-
-#ifdef NDEBUG
-constexpr bool enableValidationLayers = false;
-#else
-constexpr bool enableValidationLayers = true;
-#endif
-
+#include "../VulkanCommon.h"
 
 class WindowGLFW;
 
-class VkContext
+class Vk_Context
 {
 public:
-	VkContext() {};
+	Vk_Context() {};
 
 	void InitVkContext(WindowGLFW* InWindow)
 	{

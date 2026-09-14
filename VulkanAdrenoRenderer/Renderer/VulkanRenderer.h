@@ -23,6 +23,10 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
 #include "GLFWWindow/WindowGLFW.h"
 #include "VkContext/VkContext.h"
+#include "VkSwapChain/VkSwapChain.h"
+#include "VkPipeline/VkPipeline.h"
+#include "VkCommands/VkCommands.h"
+#include "VkSynchronization/VkSynchronization.h"
 
 class VulkanRenderer
 {
@@ -33,6 +37,10 @@ public:
 	{
 		Window.InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"VulkanAdrenoRenderer",this,framebufferResizeCallback);
 		VulkanContext.InitVkContext(&Window);
+		VulkanSwapChain.InitVkSwapChain(&VulkanContext,&Window);
+		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain);
+		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain);
+		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 
 		RunMainLoop();
 	};
@@ -44,69 +52,21 @@ public:
 
 	void MainLoop();
 
-	//void run()
-	//{
-	//	//Window.InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"VulkanRenderer", this, framebufferResizeCallback);
-	//	
-	//	initVulkan();
-	//	mainLoop(); 
-	//	cleanup();
-	//}
-
 private:
 
 	WindowGLFW Window;
-	VkContext VulkanContext;
-
-	/// <summary>
-	/// 
-	/// </summary>
-	vk::raii::SwapchainKHR swapChain = nullptr;
-	std::vector<vk::Image> swapChainImages;
-	std::vector<vk::raii::ImageView> swapChainImageViews;  // <- image views służą do dostępu do vk::Images - zawietają informację jak dany Image powinien być używany
-	vk::SurfaceFormatKHR swapChainSurfaceFormat;
-	vk::Extent2D swapChainExtent;
-
-	// Pipeline
-	vk::raii::PipelineLayout pipelineLayout = nullptr;
-	vk::raii::Pipeline pipeline = nullptr;
-
-	// command pool
-	vk::raii::CommandPool commandPool = nullptr;
-
-	// command buffer
-	std::vector<vk::raii::CommandBuffer> commandBuffers;
-
-	// Semaphores i fences - syncObjects
-	std::vector<vk::raii::Semaphore> getImageCompleteSemaphores; // <- będzie wskażywać że Image został uzyskany ze swapchaina i jest gotowy do renderingu
-	std::vector<vk::raii::Semaphore> renderFinishedSemaphores;  // <- będzie informować o tym że renderowanie zsotało zakończone
-	std::vector<vk::raii::Fence>     drawFences;				// <- fence będzie służyć do zapewnienia że renderujemy tylko jedną klatkę w danym czasie 
-
-	uint32_t frameIndex = 0;
-
-	// GLFW
-	GLFWwindow* window = nullptr;
+	Vk_Context VulkanContext;
+	Vk_SwapChain VulkanSwapChain;
+	Vk_Pipeline VulkanPipeline;
+	Vk_Commands VulkanCommands;
+	Vk_Synchronization VulkanSynchronization;
+	
 	bool frameBufferResized = false;
 
 	int previousWidth = 0;
 	int prewiousHeight = 0;
 
 	
-	void initVulkan()
-	{
-		createInstance();
-		// setupDebugMessenger();  <- do zaimplementowania później
-		createSurface(); // <- surface tworzymy przed wyborem karty, bo tworzenie surface może wpłynąć na wybór device
-		pickPhysicalDevice(); // <- wybierając kartę graficznę, można wybrać dowolną ilość kart któe spełniają wymagania i użyć ich symultanicznie
-		createLogicalDevice();
-		createSwapChain();
-		createImageViews();
-		createGraphicsPipeline();
-		createCommandPool();
-		createCommandBuffers();
-		createSemaphoresAndFences();  // <- ( create sync objects ) 
-	}
-
 	// Recreate swap chain jest potrzebne np w sytuacji gdy zmienimy rozmiar okna i istniejący swapChain jest już nie aktualny
 	// ( no bo właśnie zmieniły się rozmiar czyli powinien się zmienić również rozmiar Images ) 
 	void recreateSwapChain()
@@ -115,19 +75,17 @@ private:
 		int width = 0;
 		int height = 0;
 
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(Window.window, &width, &height);
 
 		while (width == 0 || height == 0)  // <- wystarczy że jedna z wartości będzie 0 i taki framebuffer będzie nieprawidłowy
 		{
-			glfwGetFramebufferSize(window, &width, &height);
+			glfwGetFramebufferSize(Window.window, &width, &height);
 			glfwWaitEvents();  // <- glfwWaitEvents() na chwilę usypia bieżączy wątek i czeka na jakieś zdarzenie i po tym zdarzeniu aktualizuje glfw
 			// Jeśli tego nie ma to po minimalizacji okna while kręci się cały czas i wątek jest zablokowany i nie możliwe jest przywrócenie okna
 		}
 
 		VulkanContext.logicalDevice.waitIdle();  // <- waitIdle() bo nie powinniśmy używać zasobów które są w użyciu 
-		cleanupSwapChain();
-		createSwapChain();
-		createImageViews();
+		VulkanSwapChain.RecreateVkSwapChain(&VulkanContext,&Window);
 	}
 
 	//void mainLoop()
@@ -147,65 +105,7 @@ private:
 		Window.DestroyWindow();
 	}
 
-	// Functions Defined in cpp
-	void createInstance();
-	std::vector<const char*> getRequiredInstanceExtensions();
-
-	// Surface
-	void createSurface();
-
-	// Physical Device functions - te funkcje służą wybraniu konkretnej karty i przypisaniu jej do physicalDevice
-	void pickPhysicalDevice();
-	bool isDeviceSuitable(vk::raii::PhysicalDevice const& InPhysicalDevice);  // <- przykładowa funkcja pozwalająca na sprawdzenie czy dana fizyczna karta jest odpowiednia
-	vk::raii::PhysicalDevice* choosePhysicalDeviceByScore(std::vector<vk::raii::PhysicalDevice>& physicalDevices);
-
-	// Logical Device functions - tu tworzymy logical Device - czyli główny obiekt komunikacji pomiędzy aplikacją a GPU
-	void createLogicalDevice();
-
-	// Swap Chain
-	void createSwapChain();
-	vk::SurfaceFormatKHR chooseSwapChainSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const& availableFormats);
-	vk::PresentModeKHR chooseSwapPresentMode(std::vector<vk::PresentModeKHR> const& availablePresentModes);
-	vk::Extent2D chooseSwapChainExtent(vk::SurfaceCapabilitiesKHR const& capabilities);
-	uint32_t chooseSwapChainMinImageCount(vk::SurfaceCapabilitiesKHR const& capabilities);
-	void cleanupSwapChain();
-
-	// ImageViews
-	void createImageViews();
-
-	// GraphicsPipeline
-	void createGraphicsPipeline();
-	static std::vector<uint32_t> readFile(const std::string& filename);
-
-	[[nodiscard]]
-	vk::raii::ShaderModule createShaderModule(const std::vector<uint32_t>& shaderBytes);
-
-
-	// Command pool
-	void createCommandPool();
-
-	// Command Buffer
-	void createCommandBuffers();
-
-	// Record CommandBuffer
-	void recordCommandBuffer(uint32_t imageIndex);
-
-	// transition image layout zostanie użyte do przerobienia image z ImageLayout::eUndefined na ::eColorAttachementOptimal
-	void transition_image_layout(          // w zależności od tego do czego ma być użyty Image, należy zmienić jego layout
-		uint32_t imageIndex,
-		vk::ImageLayout oldLayout,
-		vk::ImageLayout newLayout,
-		vk::AccessFlags2 src_access_mask,
-		vk::AccessFlags2 dst_access_mask,
-		vk::PipelineStageFlags2 src_stage_mask,
-		vk::PipelineStageFlags2 dst_stage_mask
-	);
-
-	// Draw frame ( in main loop ) 
-	void drawFrame();
-
-	// Sync objects
-	void createSemaphoresAndFences();
+	bool DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline);
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 

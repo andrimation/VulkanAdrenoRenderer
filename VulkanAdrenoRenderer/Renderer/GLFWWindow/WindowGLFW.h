@@ -1,7 +1,6 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN // czyli w glfw3.h jest #if dedined(GLFW_INCLUDE_VULCAN) -> 
-#include <GLFW/glfw3.h>    
+#include "../VulkanCommon.h" 
 
 class VulkanRenderer;
 

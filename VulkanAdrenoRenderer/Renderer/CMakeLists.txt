@@ -10,6 +10,13 @@ add_library(VulkanRenderer STATIC
     "GLFWWindow/WindowGLFW.h"
 	"VkContext/VkContext.h" 
 	"VkContext/VkContext.cpp"
+	"VkSwapChain/VkSwapChain.h"
+	"VkSwapChain/VkSwapChain.cpp"
+	"VkPipeline/VkPipeline.h"
+	"VkPipeline/VkPipeline.cpp"
+	"VkCommands/VkCommands.h"
+    "VkSynchronization/VkSynchronization.h"
+    "VkSynchronization/VkSynchronization.cpp"
 )
 
 target_include_directories(VulkanRenderer 
