@@ -15,8 +15,7 @@ void Vk_Synchronization::InitVkSynchronization(Vk_Context* InContext, Vk_SwapCha
 
 	for (size_t i = 0; i < InSwapChain->swapChainImages.size(); i++)
 	{
-		renderFinishedSemaphores.emplace_back(InContext->logicalDevice, vk::SemaphoreCreateInfo());
-		
+		renderFinishedSemaphores.emplace_back(InContext->logicalDevice, vk::SemaphoreCreateInfo());		
 	}
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)

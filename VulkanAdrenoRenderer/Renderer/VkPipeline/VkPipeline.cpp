@@ -176,6 +176,8 @@ std::vector<uint32_t> Vk_Pipeline::ReadFile(const std::string& filename)
 	// a binary - no to że plik czytany binarnie.
 	std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
+	// Coś było z budowaniem shaderów !
+
 	if (!file.is_open())
 	{
 		throw std::runtime_error("failed to open file");

@@ -15,6 +15,7 @@ add_library(VulkanRenderer STATIC
 	"VkPipeline/VkPipeline.h"
 	"VkPipeline/VkPipeline.cpp"
 	"VkCommands/VkCommands.h"
+	"VkCommands/VkCommands.cpp"
     "VkSynchronization/VkSynchronization.h"
     "VkSynchronization/VkSynchronization.cpp"
 )

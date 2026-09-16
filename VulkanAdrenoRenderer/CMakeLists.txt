@@ -28,6 +28,14 @@ add_custom_command(
         "$<TARGET_FILE_DIR:VulkanAdrenoRenderer>"
 )
 
+add_custom_command(
+    TARGET VulkanAdrenoRenderer
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/Renderer/VkPipeline/slang.spv"
+        "$<TARGET_FILE_DIR:VulkanAdrenoRenderer>"
+)
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET VulkanAdrenoRenderer PROPERTY CXX_STANDARD 20)
 endif()

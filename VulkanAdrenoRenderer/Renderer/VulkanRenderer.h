@@ -105,7 +105,7 @@ private:
 		Window.DestroyWindow();
 	}
 
-	bool DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline);
+	void DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline);
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
