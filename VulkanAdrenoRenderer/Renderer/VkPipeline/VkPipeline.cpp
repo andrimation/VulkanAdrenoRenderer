@@ -3,6 +3,8 @@
 #include "../VkContext/VkContext.h"
 #include "../GLFWWindow/WindowGLFW.h"
 #include "../VkSwapChain/VkSwapChain.h"
+#include "../VertexBuffer/VertexFactory.h"
+#include <array>
 
 #include <iostream>
 #include <fstream> // żeby odczytywać pliki
@@ -50,7 +52,20 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 	// wertex Input Create Info -> służy do opisu formatu w jakim przekazywane będa vertexy do vertex shadera
 	// są dwie opcje przekazywania - Bindings i Attibute descriptions.  W tym momencie zahardkodowaliśmy vertexy w pixel shader
 	// więc tworzymy po prostu
-	vk::PipelineVertexInputStateCreateInfo  vertexInputInfo;
+	//vk::PipelineVertexInputStateCreateInfo  vertexInputInfo;
+	
+	// Teraz wypełniamy vertexInputInfo z faktycznymi danymi - pobieramy informację o tym jak czytać vertexty
+	// z miejsca które odpowiada "vertexFactory" ( w VertexBuffer.h )
+	vk::VertexInputBindingDescription VertexBindingDescription = Vertex::getBindingDescription();
+	std::array<vk::VertexInputAttributeDescription,2> VertexAttributeDescriptions = Vertex::getAttributeDescription();
+
+	vk::PipelineVertexInputStateCreateInfo  vertexInputInfo{
+		.vertexBindingDescriptionCount = 1,
+		.pVertexBindingDescriptions = &VertexBindingDescription,
+		.vertexAttributeDescriptionCount = static_cast<uint32_t>(VertexAttributeDescriptions.size()),
+		.pVertexAttributeDescriptions = VertexAttributeDescriptions.data()
+		// tu
+	};
 
 	// InputAssembly określa: jaki rodzaj geometrii będzie rysowany z vertexów i czy primitive restart jest enabled czy nie
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
@@ -204,7 +219,7 @@ vk::raii::ShaderModule Vk_Pipeline::CreateShaderModule(const std::vector<uint32_
 	vk::ShaderModuleCreateInfo createInfo
 	{
 		.codeSize = shaderBytes.size() * sizeof(uint32_t),
-		// sla shaderModule wskaźnik który przekazujemy powinien być wskaźnikiem na uint32_t a nie na char, więc go reinterpret castujemy
+		// dla shaderModule wskaźnik który przekazujemy powinien być wskaźnikiem na uint32_t a nie na char, więc go reinterpret castujemy
 		.pCode = shaderBytes.data()
 		// robiąc reinterpret cast, musimy być pewni że dane spałniają wymagania alignmentu ( szczęśliwie std::vector zajmuje się tym )
 	};

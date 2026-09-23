@@ -27,6 +27,8 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 #include "VkPipeline/VkPipeline.h"
 #include "VkCommands/VkCommands.h"
 #include "VkSynchronization/VkSynchronization.h"
+#include "VertexBuffer/VertexFactory.h"
+#include "VertexBuffer/VertexBuffer.h"
 
 class VulkanRenderer
 {
@@ -39,6 +41,7 @@ public:
 		VulkanContext.InitVkContext(&Window);
 		VulkanSwapChain.InitVkSwapChain(&VulkanContext,&Window);
 		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain);
+		VulkanVertexBuffer.InitVkVertexBuffer(&VulkanContext.logicalDevice,&VulkanContext.physicalDevice); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
 		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain);
 		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 
@@ -60,6 +63,7 @@ private:
 	Vk_Pipeline VulkanPipeline;
 	Vk_Commands VulkanCommands;
 	Vk_Synchronization VulkanSynchronization;
+	Vk_VertexBuffer VulkanVertexBuffer;
 	
 	bool frameBufferResized = false;
 

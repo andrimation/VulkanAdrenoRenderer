@@ -3,8 +3,9 @@
 #include "../VkContext/VkContext.h"
 #include "../VkPipeline/VkPipeline.h"
 #include "../VkSwapChain/VkSwapChain.h"
+#include "../VertexBuffer/VertexBuffer.h"
 
-void Vk_Commands::InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain)
+void Vk_Commands::InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain,Vk_VertexBuffer* InVertexBuffer)
 {
 	CreateCommandPool(InContext);
 	CreateCommandBuffers(InContext);
@@ -32,22 +33,33 @@ void Vk_Commands::CreateCommandBuffers(Vk_Context* InContext)
 	commandBuffers = vk::raii::CommandBuffers(InContext->logicalDevice, commandBufferAllocateInfo);
 }
 
-void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline)
+void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline, Vk_VertexBuffer* InVertexBuffer)
 {
+	//vk::CommandBufferBeginInfo beginInfo{
+	//	.flags = 
+	//		vk::CommandBufferUsageFlagBits::eOneTimeSubmit 
+	//		//vk::CommandBufferUsageFlagBits::eRenderPassContinue 
+	//		//vk::CommandBufferUsageFlagBits::eSimultaneousUse
+	//		
+	//};
+	// 
+	// commandBuffer.begin(beginInfo); <- tak na prawdę nie potrzebujemy teraz żadnej z tych flag - i beginInfo nie jest nam potrzebne teraz
 	auto& commandBuffer = commandBuffers[frameIndex];
 	commandBuffer.begin({});
 
+	// Przed renderowaniem, przetransformować swap chain image do vk::ImageLayout::eColorAttachmentOptimal
 	TransitionImageLayout(imageIndex, frameIndex,vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
 		{}, vk::AccessFlagBits2::eColorAttachmentWrite,
 		vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eColorAttachmentOutput,
 		InSwapChain);
 
+	// Po zrobionej tranzycji do eColorAttachmentOptimal tworzymy color attachment
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
 	vk::RenderingAttachmentInfo attachmentInfo = {
 		.imageView = InSwapChain->swapChainImageViews[imageIndex],
 		.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-		.loadOp = vk::AttachmentLoadOp::eClear,
-		.storeOp = vk::AttachmentStoreOp::eStore,
+		.loadOp = vk::AttachmentLoadOp::eClear,    // <- co zrobić z obrazem przed renderowaniem
+		.storeOp = vk::AttachmentStoreOp::eStore,  // <- co zrobić z obrazem po renderowaniu  ( store czyli zachowujemy do późńiejszego użycia )
 		.clearValue = clearColor
 	};
 
@@ -62,13 +74,30 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *InPipeline->GetPipeline());
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
-	commandBuffer.draw(3, 1, 0, 0);
+	
+	// bindujemy vertex buffer
+	// To puki co zakomentować i zbudować plik slang.spv
+	commandBuffer.bindVertexBuffers(0, **InVertexBuffer->GetVertexBuffer(), {0});
+
+	commandBuffer.draw(
+		3,  // <- vertex count  ( o bo mamy 3 w trójkącie )
+		1,  // <- instance count ( używane do instanced rendering ) 
+		0,  // first vertex   - definiuje the lowest value of SV_VertexID
+		0   // first instance - definiuje the lowest value of SV_InstanceID
+	);
 	commandBuffer.endRendering();
 
-	TransitionImageLayout(imageIndex, frameIndex,vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
+	// Po wyrenderowaniu musimy przekształcić Image layout do vk::ImageLayout::ePresentSrcKHR <- zeby nadawało się do zaprezentowania na screenie
+	TransitionImageLayout(
+		imageIndex, 
+		frameIndex,
+		vk::ImageLayout::eColorAttachmentOptimal, 
+		vk::ImageLayout::ePresentSrcKHR,
 		vk::AccessFlagBits2::eColorAttachmentWrite, {},
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eBottomOfPipe,
-		InSwapChain);
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput, 
+		vk::PipelineStageFlagBits2::eBottomOfPipe,
+		InSwapChain
+	);
 
 	commandBuffer.end();
 }

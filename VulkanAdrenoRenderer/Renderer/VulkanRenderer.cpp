@@ -21,13 +21,14 @@ void VulkanRenderer::MainLoop()
 	Cleanup();
 }
 
+// Czwartek - bardzo rozkminić te funkcję.
+
 void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline)
 { // Zanim zaczniemy rysować klatkę, czekamy na fence - fence blokuje CPU - - draw frame jest wywoływane w pętli, więc chcemy żeby zaczekało kiedy
   // na pewno zakończy się renderować                          // vk::True wskazuje że czekamy na wszystkie fences ( w tym przypadku to bez znaczenia bo i tak jest jeden ) ( funkcja może czekać aż wszystkie fences będą signaled, albo jakikolwiek )
 
 	// Uwaga teraz drawFences, presentCompleteSemaphores i commandBuffers zależą od frameIndex a 
-	// renderFinishedSemaphores zależy od imageIndex
-
+	// renderFinishedSemaphores zależy od imageIndex     -> UINT64_MAX to timeout, czyli czekamy (w tym przypadku) w nieskończoność aż fence zostanie zasygnalizowany
 	auto fenceResult = InContext->logicalDevice.waitForFences(*VulkanSynchronization.drawFences[VulkanSynchronization.frameIndex], vk::True, UINT64_MAX); // <- wait for fences czeka defacto na rezultat funkcji graphicsQueue.submit(submitInfo, *drawFences[frameIndex]);
 
 	if (fenceResult != vk::Result::eSuccess)
@@ -39,6 +40,9 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 
 	// Teraz pobieramy wolny Image ze swapChain  -> dostajemy index Image którego możemy użyć ( a result to vk::Result )
 	auto [result, imageIndex] = VulkanSwapChain.swapChain.acquireNextImage(UINT64_MAX, *VulkanSynchronization.getImageCompleteSemaphores[VulkanSynchronization.frameIndex], nullptr);
+
+	// imageIndex - wskazuje który image ze swap chain będziemy używać
+	// frameIndex - wskazuje która to klatka z Frames_in_flight
 
 	if (result == vk::Result::eErrorOutOfDateKHR || frameBufferResized)
 	{
@@ -62,13 +66,13 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 	// która będzie sygnalizować fence.
 
 	// teraz robimy record command buffer  > i używamy image index uzyskanego wyżej
-	VulkanCommands.RecordCommandBuffer(imageIndex,VulkanSynchronization.frameIndex,InSwapChain,InPipeline);
+	VulkanCommands.RecordCommandBuffer(imageIndex,VulkanSynchronization.frameIndex,InSwapChain,InPipeline,VulkanVertexBuffer);
 
 	// Submitting command buffer
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 	const vk::SubmitInfo submitInfo{
 		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &*VulkanSynchronization.getImageCompleteSemaphores[VulkanSynchronization.frameIndex],  // <- będzie czekać na ten semaphore  // jeśli jest więcej semaforów, to każdy demafor odpowiada kolejnemu elementowi w pWaitDstStageMask    
+		.pWaitSemaphores = &*VulkanSynchronization.getImageCompleteSemaphores[VulkanSynchronization.frameIndex], // ten semafor jest użyty swapChain.acquireNextImage(UINT64_MAX, *VulkanSynchronization.  <- będzie czekać na ten semaphore  // jeśli jest więcej semaforów, to każdy demafor odpowiada kolejnemu elementowi w pWaitDstStageMask    
 		.pWaitDstStageMask = &waitDestinationStageMask,   // <- to określa na gotowość którego poziomu pipeline chcemy czekać -  a chcemy czekać na gotowość do pisania kolorów
 		.commandBufferCount = 1,
 		.pCommandBuffers = &*VulkanCommands.commandBuffers[VulkanSynchronization.frameIndex],

@@ -18,6 +18,9 @@ add_library(VulkanRenderer STATIC
 	"VkCommands/VkCommands.cpp"
     "VkSynchronization/VkSynchronization.h"
     "VkSynchronization/VkSynchronization.cpp"
+    "VertexBuffer/VertexFactory.h"
+    "VertexBuffer/VertexBuffer.h"
+    "VertexBuffer/VertexBuffer.cpp"
 )
 
 target_include_directories(VulkanRenderer 
