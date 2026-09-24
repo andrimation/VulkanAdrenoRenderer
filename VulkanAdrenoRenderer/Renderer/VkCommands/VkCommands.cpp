@@ -72,15 +72,16 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 
 	commandBuffer.beginRendering(renderingInfo);
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *InPipeline->GetPipeline());
-	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
-	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
 	
 	// bindujemy vertex buffer
 	// To puki co zakomentować i zbudować plik slang.spv
 	commandBuffer.bindVertexBuffers(0, **InVertexBuffer->GetVertexBuffer(), {0});
 
+	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
+	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
+
 	commandBuffer.draw(
-		3,  // <- vertex count  ( o bo mamy 3 w trójkącie )
+		static_cast<uint32_t>(vertices.size()),  // <- vertex count  ( o bo mamy 3 w trójkącie )
 		1,  // <- instance count ( używane do instanced rendering ) 
 		0,  // first vertex   - definiuje the lowest value of SV_VertexID
 		0   // first instance - definiuje the lowest value of SV_InstanceID

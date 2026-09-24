@@ -42,7 +42,8 @@ public:
 		VulkanSwapChain.InitVkSwapChain(&VulkanContext,&Window);
 		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain);
 		VulkanVertexBuffer.InitVkVertexBuffer(&VulkanContext.logicalDevice,&VulkanContext.physicalDevice); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
-		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain);
+		VulkanVertexBuffer.CopyVerticesToBuffer(sizeof(Vertex) * vertices.size());
+		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanVertexBuffer);
 		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 
 		RunMainLoop();

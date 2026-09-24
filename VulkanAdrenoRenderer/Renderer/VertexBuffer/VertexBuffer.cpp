@@ -55,7 +55,7 @@ void Vk_VertexBuffer::CopyVerticesToBuffer(uint32_t InMemoryToMapSize)
 {
 	// mapujemy najpierw pamięć bufora na pamięć dostępną dla CPU
 	void* mappedMemory = vertexBufferMemory.mapMemory(0, InMemoryToMapSize);
-	memcpy(mappedMemory, &vertices, InMemoryToMapSize);
+	memcpy(mappedMemory, vertices.data(), InMemoryToMapSize);  // zapamiętać że memcpy kopiować z vector.data()
 	vertexBufferMemory.unmapMemory();
 }
 

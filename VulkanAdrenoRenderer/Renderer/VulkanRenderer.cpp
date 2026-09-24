@@ -66,7 +66,7 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 	// która będzie sygnalizować fence.
 
 	// teraz robimy record command buffer  > i używamy image index uzyskanego wyżej
-	VulkanCommands.RecordCommandBuffer(imageIndex,VulkanSynchronization.frameIndex,InSwapChain,InPipeline,VulkanVertexBuffer);
+	VulkanCommands.RecordCommandBuffer(imageIndex,VulkanSynchronization.frameIndex,InSwapChain,InPipeline,&VulkanVertexBuffer);
 
 	// Submitting command buffer
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
