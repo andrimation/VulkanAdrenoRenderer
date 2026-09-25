@@ -4,6 +4,7 @@
 #include "../VkPipeline/VkPipeline.h"
 #include "../VkSwapChain/VkSwapChain.h"
 #include "../VertexBuffer/VertexBuffer.h"
+#include "../VkProfiler/VkProfilerGPU.h"
 
 void Vk_Commands::InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain,Vk_VertexBuffer* InVertexBuffer)
 {
@@ -33,7 +34,7 @@ void Vk_Commands::CreateCommandBuffers(Vk_Context* InContext)
 	commandBuffers = vk::raii::CommandBuffers(InContext->logicalDevice, commandBufferAllocateInfo);
 }
 
-void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline, Vk_VertexBuffer* InVertexBuffer)
+void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline, Vk_VertexBuffer* InVertexBuffer,Vk_ProfilerGPU* InProfiler)
 {
 	//vk::CommandBufferBeginInfo beginInfo{
 	//	.flags = 
@@ -45,7 +46,8 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	// 
 	// commandBuffer.begin(beginInfo); <- tak na prawdę nie potrzebujemy teraz żadnej z tych flag - i beginInfo nie jest nam potrzebne teraz
 	auto& commandBuffer = commandBuffers[frameIndex];
-	commandBuffer.begin({});
+	commandBuffer.begin({}); // rozpoczynamy recording <- jesli command buffer został nagrany, to kolejne wywołanie begin resetuje go. Nie jest możliwe dodawanie instrukcji do istniejącego command buffera
+	InProfiler->BeginFrame(commandBuffer,frameIndex);
 
 	// Przed renderowaniem, przetransformować swap chain image do vk::ImageLayout::eColorAttachmentOptimal
 	TransitionImageLayout(imageIndex, frameIndex,vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
@@ -100,6 +102,7 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 		InSwapChain
 	);
 
+	InProfiler->EndFrame(commandBuffer, frameIndex);
 	commandBuffer.end();
 }
 

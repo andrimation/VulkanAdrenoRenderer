@@ -21,6 +21,12 @@ add_library(VulkanRenderer STATIC
     "VertexBuffer/VertexFactory.h"
     "VertexBuffer/VertexBuffer.h"
     "VertexBuffer/VertexBuffer.cpp"
+    "VkProfiler/VkProfilerCPU.h"
+    "VkProfiler/VkProfilerCPU.cpp"
+    "VkProfiler/VkProfilerGPU.h"
+    "VkProfiler/VkProfilerGPU.cpp"
+    "VkProfiler/VkFrameTimer.h"
+    "VkProfiler/VkFrameTimer.cpp"
 )
 
 target_include_directories(VulkanRenderer 

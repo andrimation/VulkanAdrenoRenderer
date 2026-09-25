@@ -6,6 +6,7 @@ class Vk_Context;
 class Vk_SwapChain;
 class Vk_Pipeline;
 class Vk_VertexBuffer;
+class Vk_ProfilerGPU;
 
 class Vk_Commands
 {
@@ -13,7 +14,7 @@ public:
 	Vk_Commands() = default;
 
 	void InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_VertexBuffer* InVertexBuffer);
-	void RecordCommandBuffer(uint32_t imageIndex, uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline,Vk_VertexBuffer* InVertexBuffer);
+	void RecordCommandBuffer(uint32_t imageIndex, uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline,Vk_VertexBuffer* InVertexBuffer,Vk_ProfilerGPU* InProfiler);
 
 private:
 	void CreateCommandPool(Vk_Context* InContext);

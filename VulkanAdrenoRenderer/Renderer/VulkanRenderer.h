@@ -30,6 +30,10 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 #include "VertexBuffer/VertexFactory.h"
 #include "VertexBuffer/VertexBuffer.h"
 
+#include "VkProfiler/VkFrameTimer.h"
+#include "VkProfiler/VkProfilerCPU.h"
+#include "VkProfiler/VkProfilerGPU.h"
+
 class VulkanRenderer
 {
 public:
@@ -46,6 +50,8 @@ public:
 		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanVertexBuffer);
 		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 
+		GPUProfiler.InitProfilerGPU(VulkanContext.physicalDevice, VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);
+
 		RunMainLoop();
 	};
 
@@ -58,6 +64,7 @@ public:
 
 private:
 
+	// VulkanObjects
 	WindowGLFW Window;
 	Vk_Context VulkanContext;
 	Vk_SwapChain VulkanSwapChain;
@@ -65,7 +72,16 @@ private:
 	Vk_Commands VulkanCommands;
 	Vk_Synchronization VulkanSynchronization;
 	Vk_VertexBuffer VulkanVertexBuffer;
-	
+
+	// Profilers
+	Vk_FrameTimer FrameTimer;
+	Vk_ProfilerCPU CPUProfiler;
+	Vk_ProfilerGPU GPUProfiler;
+	// Profilery działają tak - CPU profiler mierzy czas wykonania CPU side kodu funkcji DrawFrame() -> a więc czas tego jak po kolei CPU sobie leci wykonując te funkcje
+	// Profiler GPU natomiast mierzą czas wykonania tego co faktycznie robi GPU - więc w record command buffer na początku command buffera profiler dodaje command pobrania timestampu
+	// i na końcu wykonania wszystkich instrukcji z command buffera profiler również pobiera timestamp ( żądanie pobrania timestampu zasadniczo też jest pisane do command buffera - to taka sama instrukcja dla 
+	// gpu jak draw ). Później po podniesieniu fence dla CPU, odczytujemy timestampy
+
 	bool frameBufferResized = false;
 
 	int previousWidth = 0;
@@ -113,5 +129,7 @@ private:
 	void DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline);
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+
+	void UpdateProfilerDisplay();
 
 };

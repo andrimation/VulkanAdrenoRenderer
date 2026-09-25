@@ -1,4 +1,5 @@
 #include "WindowGLFW.h"
+#include "WindowGLFW.h"
 
 void WindowGLFW::InitWindow(int window_width, int window_height,const char* window_title, void* InRendererPtr, GLFWframebuffersizefun InResizeCallback)
 {
@@ -25,5 +26,10 @@ void WindowGLFW::DestroyWindow()
 		glfwDestroyWindow(window);
 	}
 	glfwTerminate();
+}
+
+void WindowGLFW::SetTitle(const std::string& InTitle)
+{
+	glfwSetWindowTitle(window, InTitle.c_str());
 }
 

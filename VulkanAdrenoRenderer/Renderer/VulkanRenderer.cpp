@@ -1,7 +1,5 @@
 #include "VulkanRenderer.h"
-#include "VulkanRenderer.h"
-#include "VulkanRenderer.h"
-#include "VulkanRenderer.h"
+#include <chrono>
 
 VulkanRenderer::VulkanRenderer()
 {
@@ -11,10 +9,20 @@ VulkanRenderer::VulkanRenderer()
 void VulkanRenderer::MainLoop()
 {
 	glfwGetWindowSize(Window.window, &previousWidth, &prewiousHeight);
+
+	// DeltaTime
+
 	while (!glfwWindowShouldClose(Window.window))
 	{
+		const float DeltaTime = FrameTimer.Tick();
+
 		glfwPollEvents();
 		DrawFrame(&VulkanContext, &VulkanSwapChain, &VulkanPipeline);
+
+		if (FrameTimer.HasIntervalElapsed(0.25f))
+		{
+			UpdateProfilerDisplay();
+		}
 	}
 	VulkanContext.logicalDevice.waitIdle();
 
@@ -27,14 +35,18 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 { // Zanim zaczniemy rysować klatkę, czekamy na fence - fence blokuje CPU - - draw frame jest wywoływane w pętli, więc chcemy żeby zaczekało kiedy
   // na pewno zakończy się renderować                          // vk::True wskazuje że czekamy na wszystkie fences ( w tym przypadku to bez znaczenia bo i tak jest jeden ) ( funkcja może czekać aż wszystkie fences będą signaled, albo jakikolwiek )
 
+	CPUProfiler.BeginFrame();
+
 	// Uwaga teraz drawFences, presentCompleteSemaphores i commandBuffers zależą od frameIndex a 
 	// renderFinishedSemaphores zależy od imageIndex     -> UINT64_MAX to timeout, czyli czekamy (w tym przypadku) w nieskończoność aż fence zostanie zasygnalizowany
-	auto fenceResult = InContext->logicalDevice.waitForFences(*VulkanSynchronization.drawFences[VulkanSynchronization.frameIndex], vk::True, UINT64_MAX); // <- wait for fences czeka defacto na rezultat funkcji graphicsQueue.submit(submitInfo, *drawFences[frameIndex]);
+	auto fenceResult = VulkanContext.logicalDevice.waitForFences(*VulkanSynchronization.drawFences[VulkanSynchronization.frameIndex], vk::True, UINT64_MAX); // <- wait for fences czeka defacto na rezultat funkcji graphicsQueue.submit(submitInfo, *drawFences[frameIndex]);
 
 	if (fenceResult != vk::Result::eSuccess)
 	{
 		throw std::runtime_error("failed to wait for fence");
 	}
+
+	GPUProfiler.ReadFrame(VulkanSynchronization.frameIndex);
 
 	//logicalDevice.resetFences(*drawFences[frameIndex]);  <- tu wcześniej było reset fences, ale musimy przeniesć je "po" return ( recreateSwapChain(); )
 
@@ -66,7 +78,7 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 	// która będzie sygnalizować fence.
 
 	// teraz robimy record command buffer  > i używamy image index uzyskanego wyżej
-	VulkanCommands.RecordCommandBuffer(imageIndex,VulkanSynchronization.frameIndex,InSwapChain,InPipeline,&VulkanVertexBuffer);
+	VulkanCommands.RecordCommandBuffer(imageIndex,VulkanSynchronization.frameIndex,InSwapChain,InPipeline,&VulkanVertexBuffer,&GPUProfiler);
 
 	// Submitting command buffer
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
@@ -114,10 +126,25 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 	}
 
 	VulkanSynchronization.frameIndex = (VulkanSynchronization.frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+
+	CPUProfiler.EndFrame();
 }
 
 void VulkanRenderer::framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	auto appPtr = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
 	appPtr->frameBufferResized = true;
+}
+
+void VulkanRenderer::UpdateProfilerDisplay()
+{
+	const std::string Title = std::format(
+		"Vulkan Renderer | CPU: {:.3f} ms | GPU: {:.3f} ms | FPS: {:.1f}",
+		CPUProfiler.GetAverageFrameTimeMs(),
+		GPUProfiler.GetAverageFrameTimeMs(),
+		CPUProfiler.GetAverageFPS()
+	);
+	
+	Window.SetTitle(Title);
+		
 }
