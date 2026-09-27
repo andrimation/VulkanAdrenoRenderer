@@ -1,6 +1,10 @@
 #include "VertexBuffer.h"
+#include "VertexBuffer.h"
+#include "VertexBuffer.h"
+#include "VertexBuffer.h"
+#include "VertexBuffer.h"
 
-void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize)
+void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, EBufferDataUploadMode InUploadMode)
 {
 	vk::BufferCreateInfo bufferInfo{
 		.size = InBufferSize,
@@ -9,7 +13,6 @@ void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::P
 	};
 
 	vertexBuffer = vk::raii::Buffer(*InDevice, bufferInfo);  // <- w tym momencie mamy utworzony obiekt bufora, ale nie została jeszcze zaalokowana dla niego pamięć
-
 	vk::MemoryRequirements memoryRequirements = vertexBuffer.getMemoryRequirements(); // <- pobieramy wymagania jakie musi spełnić pamięć do przydzielenia dla tego bufora
 
 	vk::MemoryAllocateInfo memoryAllocateInfo{
@@ -17,7 +20,7 @@ void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::P
 		.memoryTypeIndex = FindMemoryTypeIndex(
 			InPhysicalDevice,
 			memoryRequirements.memoryTypeBits,
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent 
 			// „chcę pamięć, do której CPU ma dostęp i której cache jest automatycznie spójny z tym, co widzi GPU”.
 			// eHostVisible -> pamięć do której CPU ma dostęp
 			// eHostCoherent -> pamięć której nie trzeba ręcznie flushMappedMemoryRanges()/invalidateMappedMemoryRanges() po zapisie
@@ -28,6 +31,30 @@ void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::P
 	vertexBufferMemory = vk::raii::DeviceMemory(*InDevice, memoryAllocateInfo);
 	// teraz bindujemy zaalokowaną pamięć z vertex bufferem
 	vertexBuffer.bindMemory(*vertexBufferMemory, 0);  // jeśli offset nie jest 0 to musi być podzielny przez memoryRequirements.alignment
+}
+
+void Vk_VertexBuffer::CreateUsingDirectBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlagBits InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
+{
+	auto [buffer, bufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, InBufferUsage, InMemoryProperties);
+
+	vertexBuffer = std::move(buffer);
+	bufferMemory = std::move(bufferMemory);
+}
+
+void Vk_VertexBuffer::CreateUsingStagingBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlagBits InStageBufferUsage, vk::MemoryPropertyFlags InStageBufferMemoryProperties,vk::BufferUsageFlagBits InDestBufferUsage, vk::MemoryPropertyFlags InDestBufferMemoryProperties)
+{
+	vk::BufferUsageFlagBits stagingBufferUsageFlags = vk::BufferUsageFlagBits::eTransferSrc;  // <- czyli że będzie źródłem transferu do GPU
+	vk::MemoryPropertyFlags stagingBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- czyli że pamięć dostępna dla CPU
+	auto [stagingBuffer, stagingBufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, InStageBufferUsage, InStageBufferMemoryProperties);
+
+	// mapujemy najpierw pamięć staging bufora na pamięć dostępną dla CPU
+	void* mappedMemory = stagingBufferMemory.mapMemory(0, InBufferSize);
+	memcpy(mappedMemory, vertices.data(), InBufferSize);  // zapamiętać że memcpy kopiować z vector.data()
+	stagingBufferMemory.unmapMemory();
+
+
+	// std::tie "rozpakowuje" tuple zwracaną przez CreateBuffer() i przypisuje wyniki bezpośrednio do vertexBuffer,vertexBufferMemory ( czyli nie robimy osbnego move temp itp )
+	std::tie(vertexBuffer, vertexBufferMemory) = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, InDestBufferUsage, InDestBufferMemoryProperties);
 }
 
 uint32_t Vk_VertexBuffer::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties)
@@ -49,6 +76,33 @@ uint32_t Vk_VertexBuffer::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysic
 	}
 
 	throw std::runtime_error("No proper memory found");
+}
+
+// Ta funkcja już nie używa pola buffer w klasie, tylko alokuje nowy i zwraca parę <Buffer, DeviceMemory> - w tym przypadku nie musimy już używać pola buffer w klasie, bo możemy zwrócić parę i przypisać ją do pola w klasie.
+std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_VertexBuffer::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlagBits InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
+{
+	vk::BufferCreateInfo bufferInfo{
+		.size = InBufferSize,
+		.usage = InBufferUsage, // <- używając bitwise or możemy zrobić że bufor nie będzie wyłącznie jako eVertexBuffer, ale że może mieć kilka zastosowań na raz. 
+		.sharingMode = vk::SharingMode::eExclusive       // <- czy bufor będzie używany wyłącznie przez jedną queue czy zakładamy że może być używany przez różne
+	};
+
+	vk::raii::Buffer buffer = vk::raii::Buffer(*InDevice, bufferInfo);  // <- w tym momencie mamy utworzony obiekt bufora, ale nie została jeszcze zaalokowana dla niego pamięć)
+	vk::MemoryRequirements memoryRequirements = buffer.getMemoryRequirements(); // <- pobieramy wymagania jakie musi spełnić pamięć do przydzielenia dla tego bufora
+
+	vk::MemoryAllocateInfo memoryAllocateInfo{
+		.allocationSize = memoryRequirements.size,
+		.memoryTypeIndex = FindMemoryTypeIndex(
+			InPhysicalDevice,
+			memoryRequirements.memoryTypeBits,
+			InMemoryProperties	// <- właściwości które pamięć musi spełniać. 	
+		)
+	};
+
+	vk::raii::DeviceMemory bufferMemory = vk::raii::DeviceMemory(*InDevice, memoryAllocateInfo);
+	buffer.bindMemory(*bufferMemory, 0);
+
+	return { std::move(buffer),std::move(bufferMemory) };
 }
 
 void Vk_VertexBuffer::CopyVerticesToBuffer(uint32_t InMemoryToMapSize)

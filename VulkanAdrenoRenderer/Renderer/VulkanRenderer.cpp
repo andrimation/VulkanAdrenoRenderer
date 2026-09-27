@@ -111,7 +111,22 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 	// że CPU poleciał już dale i nie dostaje informacji czy ten konkretny semafor jest wciąż używany czy już nie.
 	// - mamy za to inną gwarancję -> jeśli acquireNextImage(UINT64_MAX, *presentCompleteSemaphores[frameIndex],  ...) zwróci nam obraz, to mamy gwarancję że
 	// semafor przypisany do danego obrazu został już skonsumowany i możemy go użyć ( to też oznacza że operacja prezentacji została zakończona )
+	// vkQueuePresentKHR kolejkuje operację prezentacji.
+	
+	// Presentation operation czeka na renderFinishedSemaphore,
+	// więc obraz nie zostanie użyty do prezentacji zanim rendering się nie zakończy.
+	//
+	// UWAGA:
+	// Wywołanie presentKHR po stronie CPU nie musi wrócić natychmiast.
+	// Sterownik może blokować tutaj CPU, np. z powodu VSync / frame pacingu
+	// albo ograniczeń presentation engine.
+	//
+	// Na naszym urządzeniu presentKHR zajmuje ~7-8 ms,
+	// mimo że sam rendering GPU trwa tylko ~0.15 ms.
+	// Oznacza to, że większość tego czasu to nie praca renderująca GPU,
+	// tylko oczekiwanie związane z prezentacją.
 	result = InContext->graphicsQueue.presentKHR(presentInfoKHR);
+	// puki co największy czas CPU spędzamy na .presentKHR - JEDNAK w przeciwieństwie do komentarza u góry CPU czeka aż presentKHR się wykona ! ma to związek z frame pacing i refresh rate monitora
 
 	// presentKHR również zwraca info o sukcesie albo nie. JEśli mamy result suboptimal albo OutOfDate to odtwarzamy swap chain
 	// ( nie musimy robić tu return, bo to i tak już końcówka drawFrame)
