@@ -3,83 +3,62 @@
 #include "VertexBuffer.h"
 #include "VertexBuffer.h"
 #include "VertexBuffer.h"
+#include "VertexBuffer.h"
 
 void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, EBufferDataUploadMode InUploadMode)
-{
-	vk::BufferCreateInfo bufferInfo{
-		.size = InBufferSize,
-		.usage = vk::BufferUsageFlagBits::eVertexBuffer, // <- używając bitwise or możemy zrobić że bufor nie będzie wyłącznie jako eVertexBuffer, ale że może mieć kilka zastosowań na raz. 
-		.sharingMode = vk::SharingMode::eExclusive       // <- czy bufor będzie używany wyłącznie przez jedną queue czy zakładamy że może być używany przez różne
-	};
+{	
+	if (InUploadMode == EBufferDataUploadMode::Direct)
+	{
+		
+		CreateUsingDirectBuffer(InDevice,InPhysicalDevice,InBufferSize);	
 
-	vertexBuffer = vk::raii::Buffer(*InDevice, bufferInfo);  // <- w tym momencie mamy utworzony obiekt bufora, ale nie została jeszcze zaalokowana dla niego pamięć
-	vk::MemoryRequirements memoryRequirements = vertexBuffer.getMemoryRequirements(); // <- pobieramy wymagania jakie musi spełnić pamięć do przydzielenia dla tego bufora
+	}
+	else if (InUploadMode == EBufferDataUploadMode::Staging)
+	{
 
-	vk::MemoryAllocateInfo memoryAllocateInfo{
-		.allocationSize = memoryRequirements.size,
-		.memoryTypeIndex = FindMemoryTypeIndex(
-			InPhysicalDevice,
-			memoryRequirements.memoryTypeBits,
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent 
-			// „chcę pamięć, do której CPU ma dostęp i której cache jest automatycznie spójny z tym, co widzi GPU”.
-			// eHostVisible -> pamięć do której CPU ma dostęp
-			// eHostCoherent -> pamięć której nie trzeba ręcznie flushMappedMemoryRanges()/invalidateMappedMemoryRanges() po zapisie
-			// i odczycie przez CPU
-		)
-	};
+		CreateUsingStagingBuffer(InDevice, InPhysicalDevice, InBufferSize);
 
-	vertexBufferMemory = vk::raii::DeviceMemory(*InDevice, memoryAllocateInfo);
-	// teraz bindujemy zaalokowaną pamięć z vertex bufferem
-	vertexBuffer.bindMemory(*vertexBufferMemory, 0);  // jeśli offset nie jest 0 to musi być podzielny przez memoryRequirements.alignment
+	}
 }
 
-void Vk_VertexBuffer::CreateUsingDirectBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlagBits InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
+void Vk_VertexBuffer::CreateUsingDirectBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::raii::CommandPool* InCommandPool,vk::raii::Queue* InGraphicsQueue)
 {
-	auto [buffer, bufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, InBufferUsage, InMemoryProperties);
+	vk::BufferUsageFlagBits DirectBufferUsageFlags = vk::BufferUsageFlagBits::eVertexBuffer;  // <- czyli że będzie źródłem transferu do GPU
+	vk::MemoryPropertyFlags DirectBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- pamięć dostępna dla CPU i GPU (?)
+
+	auto [buffer, bufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, DirectBufferUsageFlags, DirectBufferMemoryProperties);
 
 	vertexBuffer = std::move(buffer);
-	bufferMemory = std::move(bufferMemory);
+	vertexBufferMemory = std::move(bufferMemory);
+
+	// Kopiujemy vertices bezpośrednio do wspólnego bufora
+	CopyVerticesToBuffer(vertexBufferMemory, vertices.data(), InBufferSize);
 }
 
-void Vk_VertexBuffer::CreateUsingStagingBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlagBits InStageBufferUsage, vk::MemoryPropertyFlags InStageBufferMemoryProperties,vk::BufferUsageFlagBits InDestBufferUsage, vk::MemoryPropertyFlags InDestBufferMemoryProperties)
+void Vk_VertexBuffer::CreateUsingStagingBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize)
 {
-	vk::BufferUsageFlagBits stagingBufferUsageFlags = vk::BufferUsageFlagBits::eTransferSrc;  // <- czyli że będzie źródłem transferu do GPU
-	vk::MemoryPropertyFlags stagingBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- czyli że pamięć dostępna dla CPU
-	auto [stagingBuffer, stagingBufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, InStageBufferUsage, InStageBufferMemoryProperties);
+	// Staging Buffer
+	vk::BufferUsageFlagBits StageBufferUsageFlags = vk::BufferUsageFlagBits::eTransferSrc;  // <- czyli że będzie źródłem transferu do GPU
+	vk::MemoryPropertyFlags StageBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- pamięć dostępna dla CPU i GPU (?)
 
-	// mapujemy najpierw pamięć staging bufora na pamięć dostępną dla CPU
-	void* mappedMemory = stagingBufferMemory.mapMemory(0, InBufferSize);
-	memcpy(mappedMemory, vertices.data(), InBufferSize);  // zapamiętać że memcpy kopiować z vector.data()
-	stagingBufferMemory.unmapMemory();
+	auto [stagingBuffer, stagingBufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, StageBufferUsageFlags, StageBufferMemoryProperties);
 
+	// kopiujemy dane do staging buffera
+	CopyVerticesToBuffer(stagingBufferMemory,vertices.data(), InBufferSize);
+
+
+	// Destination buffer
+	vk::BufferUsageFlags DestBufferUsageFlags = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;  // <- czyli że będzie buforem docelowym, do którego będziemy przenosić dane
+	vk::MemoryPropertyFlags DestBufferMemoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal; // <- czyli że pamięć dostępna tylko dla CPU
 
 	// std::tie "rozpakowuje" tuple zwracaną przez CreateBuffer() i przypisuje wyniki bezpośrednio do vertexBuffer,vertexBufferMemory ( czyli nie robimy osbnego move temp itp )
-	std::tie(vertexBuffer, vertexBufferMemory) = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, InDestBufferUsage, InDestBufferMemoryProperties);
-}
+	std::tie(vertexBuffer, vertexBufferMemory) = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, DestBufferUsageFlags, DestBufferMemoryProperties);
 
-uint32_t Vk_VertexBuffer::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties)
-{
-	vk::PhysicalDeviceMemoryProperties memoryProperties = InPhysicalDevice->getMemoryProperties();  // <- pobieramy informacje o tym jakie typy pamięci oferuje GPU
-
-	// memory properties oferuje info o memory types i memory heaps - różne typy pamięci mogą być w różnych "heaps" - czyli jedna może być bezpośrednio w vram, inna w cpu ram - co ma wpływ na wydajność.
-	// puki co sprawdzimy tylko memory types
-
-	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
-	{
-		//( 1 << i )tu po prostu przesuwamy flagę bitową o 1 w lewo co obrót pętli 0001 -> 0010 -> 0100  // zapis memoryProperties.memoryTypes[i].propertyFlags & InProperties ( bitowe AND ) sprawdza czy zgadza się przynajmniej jedna flaga, 
-		// natomiast (memoryProperties.memoryTypes[i].propertyFlags & InProperties) == InProperties sprawdza czy co najmniej wszystkie flagi które wymagam są OK ( dlatego nie może być memoryProperties.memoryTypes[i].propertyFlags == InProperties -> bo w tym przypadku
-		// muszą być identyczne. Zatem x & y -> czy x ma co najmniej jedną flagę y, natomiast (x & y ) == y sprawdza czy po zrobieniu x AND y - wyszły wszystkie flagi które są w y ( czyli x & y zwraca flagi które są wspólne dla x i y. )
-		if (InTypeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & InProperties) == InProperties)  
-		{
-			return i;
-		}
-	}
-
-	throw std::runtime_error("No proper memory found");
+	// kopiujemy staging buffer 
 }
 
 // Ta funkcja już nie używa pola buffer w klasie, tylko alokuje nowy i zwraca parę <Buffer, DeviceMemory> - w tym przypadku nie musimy już używać pola buffer w klasie, bo możemy zwrócić parę i przypisać ją do pola w klasie.
-std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_VertexBuffer::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlagBits InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
+std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_VertexBuffer::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlags InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
 {
 	vk::BufferCreateInfo bufferInfo{
 		.size = InBufferSize,
@@ -105,12 +84,47 @@ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_VertexBuffer::CreateBuffe
 	return { std::move(buffer),std::move(bufferMemory) };
 }
 
-void Vk_VertexBuffer::CopyVerticesToBuffer(uint32_t InMemoryToMapSize)
+void Vk_VertexBuffer::CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource,uint32_t InMemoryToMapSize)
 {
 	// mapujemy najpierw pamięć bufora na pamięć dostępną dla CPU
-	void* mappedMemory = vertexBufferMemory.mapMemory(0, InMemoryToMapSize);
-	memcpy(mappedMemory, vertices.data(), InMemoryToMapSize);  // zapamiętać że memcpy kopiować z vector.data()
-	vertexBufferMemory.unmapMemory();
+	void* mappedMemory = InDestBufferMemory.mapMemory(0, InMemoryToMapSize);
+	memcpy(mappedMemory, InDataSource, InMemoryToMapSize);  // zapamiętać że memcpy kopiować z vector.data()
+	InDestBufferMemory.unmapMemory();
+}
+
+// Funkcja poniżej służy aby jeden bufor przekopiować do innego
+void Vk_VertexBuffer::CopyBuffer(vk::raii::Buffer InSrcBuffer, vk::raii::Buffer InDstBuffer, uint32_t Size)
+{
+	// Data transfer z eTransferSrc do eTransferDst odbywa się za pomocą nagrania command buffera - więc kopiowanie danych ze Staging Bufforu do dest bufforu jest operacją wykonywaną przez GPU - musimy nagrać command, który gpu wykona
+	// szczęśliwie nasza główna queue obsługuje commandy związane z transferem. Nagrywamy więc command buffer z poleceniem transferu danych i później robimy submit tego commanda do naszej queue
+
+	vk::CommandBufferAllocateInfo CmdBuffAlocationInfo
+	{
+		.commandPool = c, // podać command pool i przekazać queue
+		.level = vk::CommandBufferLevel::ePrimary,
+		.commandBufferCount = 1
+	};
+}
+
+uint32_t Vk_VertexBuffer::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties)
+{
+	vk::PhysicalDeviceMemoryProperties memoryProperties = InPhysicalDevice->getMemoryProperties();  // <- pobieramy informacje o tym jakie typy pamięci oferuje GPU
+
+	// memory properties oferuje info o memory types i memory heaps - różne typy pamięci mogą być w różnych "heaps" - czyli jedna może być bezpośrednio w vram, inna w cpu ram - co ma wpływ na wydajność.
+	// puki co sprawdzimy tylko memory types
+
+	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+	{
+		//( 1 << i )tu po prostu przesuwamy flagę bitową o 1 w lewo co obrót pętli 0001 -> 0010 -> 0100  // zapis memoryProperties.memoryTypes[i].propertyFlags & InProperties ( bitowe AND ) sprawdza czy zgadza się przynajmniej jedna flaga, 
+		// natomiast (memoryProperties.memoryTypes[i].propertyFlags & InProperties) == InProperties sprawdza czy co najmniej wszystkie flagi które wymagam są OK ( dlatego nie może być memoryProperties.memoryTypes[i].propertyFlags == InProperties -> bo w tym przypadku
+		// muszą być identyczne. Zatem x & y -> czy x ma co najmniej jedną flagę y, natomiast (x & y ) == y sprawdza czy po zrobieniu x AND y - wyszły wszystkie flagi które są w y ( czyli x & y zwraca flagi które są wspólne dla x i y. )
+		if (InTypeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & InProperties) == InProperties)
+		{
+			return i;
+		}
+	}
+
+	throw std::runtime_error("No proper memory found");
 }
 
 // musimy jeszcze zbindować VertexBuffer w pipeline

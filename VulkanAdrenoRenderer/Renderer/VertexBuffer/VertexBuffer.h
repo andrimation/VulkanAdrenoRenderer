@@ -16,7 +16,7 @@ enum class EBufferDataUploadMode
 // normalny/Direct : 1) W klasie Vk_VertexBuffer mamy pole vertexBuffer i vertexBufferMemory. 
 //			         2) Tworzymy obiekty bufforów z typem pamięci która jest mapowalna dla CPU. 
 //					 3) Po utworzeniu pamięci kopiujemy dane bezpośrednio do tej pamięci i później GPU jej używa
-
+// 
 // Staging Buffer:
 //					 1) W funkcji najpierw tworzymy staging buffer - czyli bufor pośredni który jest mapowalny dla CPU ( te bufory nie są polem klasy, istnieją tylko na czas funkcji )
 //					 2) Do staging bufferów kopiujemy dane ( vertexy w tym przypadku )
@@ -29,7 +29,7 @@ class Vk_VertexBuffer
 public:
 	Vk_VertexBuffer() {};
 
-	void InitVkVertexBuffer(vk::raii::Device* InLogicalDevice,vk::raii::PhysicalDevice* InPhysicalDevice,EBufferDataUploadMode InUploadMode)
+	void InitVkVertexBuffer(vk::raii::Device* InLogicalDevice,vk::raii::PhysicalDevice* InPhysicalDevice,EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct)
 	{
 		uint32_t VertexBufferSize = sizeof(Vertex) * vertices.size();
 		CreateVertexBuffer(InLogicalDevice,InPhysicalDevice,VertexBufferSize,InUploadMode);
@@ -37,35 +37,35 @@ public:
 
 	vk::raii::Buffer* GetVertexBuffer() { return &vertexBuffer; };
 
-	void CopyVerticesToBuffer(uint32_t InMemoryToMapSize);
-
 private:
 
 	void CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, EBufferDataUploadMode InUploadMode);
 	
-	void CreateUsingDirectBuffer(vk::raii::Device* InDevice,
+	void CreateUsingDirectBuffer(
+		vk::raii::Device* InDevice,
 		vk::raii::PhysicalDevice* InPhysicalDevice,
 		uint32_t InBufferSize,
-		vk::BufferUsageFlagBits InBufferUsage,
-		vk::MemoryPropertyFlags InMemoryProperties);
+		vk::raii::CommandPool* InCommandPool = nullptr,
+		vk::raii::Queue* InGraphicsQueue = nullptr
+	);
+
 	void CreateUsingStagingBuffer(vk::raii::Device* InDevice,
 		vk::raii::PhysicalDevice* InPhysicalDevice,
-		uint32_t InBufferSize,
-		vk::BufferUsageFlagBits InStageBufferUsage, 
-		vk::MemoryPropertyFlags InStageBufferMemoryProperties, 
-		vk::BufferUsageFlagBits InDestBufferUsage, 
-		vk::MemoryPropertyFlags InDestBufferMemoryProperties
+		uint32_t InBufferSize
 	);
-	
-	uint32_t FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties);  // <- generalnie GPU oferują różne typy pamięci, o różnej wydajności i zastosowaniach - musimy znaleźć właściwy
-	
+		
 	std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> CreateBuffer(
 		vk::raii::Device* InDevice,
 		vk::raii::PhysicalDevice* InPhysicalDevice,
 		uint32_t InBufferSize,
-		vk::BufferUsageFlagBits InBufferUsage,
+		vk::BufferUsageFlags InBufferUsage,
 		vk::MemoryPropertyFlags InMemoryProperties
 	);
+
+	void CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource, uint32_t InMemoryToMapSize);
+	void CopyBuffer(vk::raii::Buffer InSrcBuffer, vk::raii::Buffer InDstBuffer, uint32_t Size);
+
+	uint32_t FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties);  // <- generalnie GPU oferują różne typy pamięci, o różnej wydajności i zastosowaniach - musimy znaleźć właściwy
 	
 	vk::raii::Buffer vertexBuffer = nullptr;
 	vk::raii::DeviceMemory vertexBufferMemory = nullptr;
