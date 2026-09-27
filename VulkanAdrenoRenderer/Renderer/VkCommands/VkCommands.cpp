@@ -31,6 +31,7 @@ void Vk_Commands::CreateCommandBuffers(Vk_Context* InContext)
 		.commandBufferCount = MaxFramesInFlight
 	};
 
+	// zapis poniżej zwraca nam kolekcję command buffers, natomiast:
 	commandBuffers = vk::raii::CommandBuffers(InContext->logicalDevice, commandBufferAllocateInfo);
 }
 

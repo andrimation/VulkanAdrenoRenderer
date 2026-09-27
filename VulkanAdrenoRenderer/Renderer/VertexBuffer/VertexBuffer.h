@@ -29,29 +29,29 @@ class Vk_VertexBuffer
 public:
 	Vk_VertexBuffer() {};
 
-	void InitVkVertexBuffer(vk::raii::Device* InLogicalDevice,vk::raii::PhysicalDevice* InPhysicalDevice,EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct)
+	void InitVkVertexBuffer(vk::raii::Device* InLogicalDevice,vk::raii::PhysicalDevice* InPhysicalDevice,EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct, vk::raii::CommandPool* InCommandPool = nullptr, vk::raii::Queue* InGraphicsQueue = nullptr)
 	{
 		uint32_t VertexBufferSize = sizeof(Vertex) * vertices.size();
-		CreateVertexBuffer(InLogicalDevice,InPhysicalDevice,VertexBufferSize,InUploadMode);
+		CreateVertexBuffer(InLogicalDevice,InPhysicalDevice,VertexBufferSize,InUploadMode, InCommandPool, InGraphicsQueue);
 	};
 
 	vk::raii::Buffer* GetVertexBuffer() { return &vertexBuffer; };
 
 private:
 
-	void CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, EBufferDataUploadMode InUploadMode);
+	void CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue);
 	
 	void CreateUsingDirectBuffer(
 		vk::raii::Device* InDevice,
 		vk::raii::PhysicalDevice* InPhysicalDevice,
-		uint32_t InBufferSize,
-		vk::raii::CommandPool* InCommandPool = nullptr,
-		vk::raii::Queue* InGraphicsQueue = nullptr
+		uint32_t InBufferSize
 	);
 
 	void CreateUsingStagingBuffer(vk::raii::Device* InDevice,
 		vk::raii::PhysicalDevice* InPhysicalDevice,
-		uint32_t InBufferSize
+		uint32_t InBufferSize,
+		vk::raii::CommandPool* InCommandPool, 
+		vk::raii::Queue* InGraphicsQueue
 	);
 		
 	std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> CreateBuffer(
@@ -63,7 +63,7 @@ private:
 	);
 
 	void CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource, uint32_t InMemoryToMapSize);
-	void CopyBuffer(vk::raii::Buffer InSrcBuffer, vk::raii::Buffer InDstBuffer, uint32_t Size);
+	void CopyBuffer(vk::raii::Device* InLogicalDevice,vk::raii::Buffer* InSrcBuffer, vk::raii::Buffer* InDstBuffer, uint32_t Size,vk::raii::CommandPool* InCommandPool,vk::raii::Queue* InGraphicsQueue);
 
 	uint32_t FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties);  // <- generalnie GPU oferują różne typy pamięci, o różnej wydajności i zastosowaniach - musimy znaleźć właściwy
 	
