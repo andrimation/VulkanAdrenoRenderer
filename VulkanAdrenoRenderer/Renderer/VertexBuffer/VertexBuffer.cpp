@@ -3,63 +3,71 @@
 #include "VertexBuffer.h"
 #include "VertexBuffer.h"
 #include "VertexBuffer.h"
-#include "VertexBuffer.h"
 
-void Vk_VertexBuffer::CreateVertexBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
+void Vk_Buffers::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
 {	
 	if (InUploadMode == EBufferDataUploadMode::Direct)
 	{
 		
-		CreateUsingDirectBuffer(InDevice,InPhysicalDevice,InBufferSize);	
+		CreateUsingDirectBuffer(vk::BufferUsageFlagBits::eVertexBuffer,InDevice,InPhysicalDevice);
+		CreateUsingDirectBuffer(vk::BufferUsageFlagBits::eIndexBuffer,InDevice,InPhysicalDevice);
 
 	}
 	else if (InUploadMode == EBufferDataUploadMode::Staging)
 	{
 
-		CreateUsingStagingBuffer(InDevice, InPhysicalDevice, InBufferSize, InCommandPool, InGraphicsQueue);
+		CreateUsingStagingBuffer(vk::BufferUsageFlagBits::eVertexBuffer,InDevice, InPhysicalDevice, InCommandPool, InGraphicsQueue);
+		CreateUsingStagingBuffer(vk::BufferUsageFlagBits::eIndexBuffer,InDevice, InPhysicalDevice, InCommandPool, InGraphicsQueue);
 
 	}
 }
 
-void Vk_VertexBuffer::CreateUsingDirectBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize)
+void Vk_Buffers::CreateUsingDirectBuffer(vk::BufferUsageFlagBits InBufferUsage, vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice)
 {
-	vk::BufferUsageFlagBits DirectBufferUsageFlags = vk::BufferUsageFlagBits::eVertexBuffer;  // <- czyli że będzie źródłem transferu do GPU
+	vk::BufferUsageFlagBits DirectBufferUsageFlags = InBufferUsage;  // <- czyli że będzie źródłem transferu do GPU
 	vk::MemoryPropertyFlags DirectBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- pamięć dostępna dla CPU i GPU (?)
 
-	auto [buffer, bufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, DirectBufferUsageFlags, DirectBufferMemoryProperties);
+	uint32_t BufferMemorySize = GetBufferMemorySize(InBufferUsage);
+	auto [buffer, bufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, BufferMemorySize, DirectBufferUsageFlags, DirectBufferMemoryProperties);
 
-	vertexBuffer = std::move(buffer);
-	vertexBufferMemory = std::move(bufferMemory);
+	BufferStorage PackedBuffer = GetBufferStorage(InBufferUsage);
+	PackedBuffer.Buffer = std::move(buffer);
+	PackedBuffer.BufferMemory = std::move(bufferMemory);
 
 	// Kopiujemy vertices bezpośrednio do wspólnego bufora
-	CopyVerticesToBuffer(vertexBufferMemory, vertices.data(), InBufferSize);
+	const void* DataToCopy = FindDataSourceToCopy(InBufferUsage);
+	CopyVerticesToBuffer(PackedBuffer.BufferMemory, DataToCopy, BufferMemorySize);
 }
 
-void Vk_VertexBuffer::CreateUsingStagingBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
+void Vk_Buffers::CreateUsingStagingBuffer(vk::BufferUsageFlagBits InBufferUsage, vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
 {
 	// Staging Buffer
 	vk::BufferUsageFlagBits StageBufferUsageFlags = vk::BufferUsageFlagBits::eTransferSrc;  // <- czyli że będzie źródłem transferu do GPU
 	vk::MemoryPropertyFlags StageBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- pamięć dostępna dla CPU i GPU (?)
+	
+	uint32_t BufferMemorySize = GetBufferMemorySize(InBufferUsage);
 
-	auto [stagingBuffer, stagingBufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, StageBufferUsageFlags, StageBufferMemoryProperties);
+	auto [stagingBuffer, stagingBufferMemory] = CreateBuffer(InDevice, InPhysicalDevice, BufferMemorySize, StageBufferUsageFlags, StageBufferMemoryProperties);
 
 	// kopiujemy dane do staging buffera
-	CopyVerticesToBuffer(stagingBufferMemory,vertices.data(), InBufferSize);
+	const void* DataToCopy = FindDataSourceToCopy(InBufferUsage);
+	CopyVerticesToBuffer(stagingBufferMemory, DataToCopy, BufferMemorySize);
 
 
 	// Destination buffer
-	vk::BufferUsageFlags DestBufferUsageFlags = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;  // <- czyli że będzie buforem docelowym, do którego będziemy przenosić dane
+	vk::BufferUsageFlags DestBufferUsageFlags = InBufferUsage | vk::BufferUsageFlagBits::eTransferDst;  // <- czyli że będzie buforem docelowym, do którego będziemy przenosić dane
 	vk::MemoryPropertyFlags DestBufferMemoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal; // <- czyli że pamięć dostępna tylko dla CPU
 
 	// std::tie "rozpakowuje" tuple zwracaną przez CreateBuffer() i przypisuje wyniki bezpośrednio do vertexBuffer,vertexBufferMemory ( czyli nie robimy osbnego move temp itp )
-	std::tie(vertexBuffer, vertexBufferMemory) = CreateBuffer(InDevice, InPhysicalDevice, InBufferSize, DestBufferUsageFlags, DestBufferMemoryProperties);
+	BufferStorage PackedBuffer = GetBufferStorage(InBufferUsage);
+	std::tie(PackedBuffer.Buffer, PackedBuffer.BufferMemory) = CreateBuffer(InDevice, InPhysicalDevice, BufferMemorySize, DestBufferUsageFlags, DestBufferMemoryProperties);
 
 	// kopiujemy staging buffer 
-	CopyBuffer(InDevice,&stagingBuffer,&vertexBuffer,InBufferSize, InCommandPool, InGraphicsQueue);
+	CopyBuffer(InDevice,&stagingBuffer,&PackedBuffer.Buffer, BufferMemorySize, InCommandPool, InGraphicsQueue);
 }
 
 // Ta funkcja już nie używa pola buffer w klasie, tylko alokuje nowy i zwraca parę <Buffer, DeviceMemory> - w tym przypadku nie musimy już używać pola buffer w klasie, bo możemy zwrócić parę i przypisać ją do pola w klasie.
-std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_VertexBuffer::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlags InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
+std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_Buffers::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InBufferSize, vk::BufferUsageFlags InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties)
 {
 	vk::BufferCreateInfo bufferInfo{
 		.size = InBufferSize,
@@ -85,7 +93,7 @@ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_VertexBuffer::CreateBuffe
 	return { std::move(buffer),std::move(bufferMemory) };
 }
 
-void Vk_VertexBuffer::CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource,uint32_t InMemoryToMapSize)
+void Vk_Buffers::CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource,uint32_t InMemoryToMapSize)
 {
 	// mapujemy najpierw pamięć bufora na pamięć dostępną dla CPU
 	void* mappedMemory = InDestBufferMemory.mapMemory(0, InMemoryToMapSize);
@@ -94,7 +102,7 @@ void Vk_VertexBuffer::CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferM
 }
 
 // Funkcja poniżej służy aby jeden bufor przekopiować do innego
-void Vk_VertexBuffer::CopyBuffer(vk::raii::Device* InDevice,vk::raii::Buffer* InSrcBuffer, vk::raii::Buffer* InDstBuffer, uint32_t InSize, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
+void Vk_Buffers::CopyBuffer(vk::raii::Device* InDevice,vk::raii::Buffer* InSrcBuffer, vk::raii::Buffer* InDstBuffer, uint32_t InSize, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
 {
 	// Data transfer z eTransferSrc do eTransferDst odbywa się za pomocą nagrania command buffera - więc kopiowanie danych ze Staging Bufforu do dest bufforu jest operacją wykonywaną przez GPU - musimy nagrać command, który gpu wykona
 	// szczęśliwie nasza główna queue obsługuje commandy związane z transferem. Nagrywamy więc command buffer z poleceniem transferu danych i później robimy submit tego commanda do naszej queue
@@ -135,7 +143,7 @@ void Vk_VertexBuffer::CopyBuffer(vk::raii::Device* InDevice,vk::raii::Buffer* In
 
 }
 
-uint32_t Vk_VertexBuffer::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties)
+uint32_t Vk_Buffers::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties)
 {
 	vk::PhysicalDeviceMemoryProperties memoryProperties = InPhysicalDevice->getMemoryProperties();  // <- pobieramy informacje o tym jakie typy pamięci oferuje GPU
 
@@ -154,6 +162,48 @@ uint32_t Vk_VertexBuffer::FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysic
 	}
 
 	throw std::runtime_error("No proper memory found");
+}
+
+Vk_Buffers::BufferStorage Vk_Buffers::GetBufferStorage(vk::BufferUsageFlagBits InBufferUsage)
+{
+	switch (InBufferUsage)
+	{
+	case vk::BufferUsageFlagBits::eVertexBuffer:
+		return { vertexBuffer, vertexBufferMemory };
+
+	case vk::BufferUsageFlagBits::eIndexBuffer:
+		return { indexBuffer, indexBufferMemory };
+	}
+
+	throw std::runtime_error("Unsupported buffer type");
+}
+
+uint32_t Vk_Buffers::GetBufferMemorySize(vk::BufferUsageFlagBits InBufferUsage)
+{
+	switch (InBufferUsage)
+	{
+	case vk::BufferUsageFlagBits::eVertexBuffer:
+		return static_cast<uint32_t>(sizeof(Vertex) * vertices.size());
+
+	case vk::BufferUsageFlagBits::eIndexBuffer:
+		return static_cast<uint32_t>(sizeof(uint16_t) * indices.size());
+	}
+
+	throw std::runtime_error("Unsupported buffer type");
+}
+
+const void* Vk_Buffers::FindDataSourceToCopy(vk::BufferUsageFlagBits InBufferUsage)
+{
+	switch (InBufferUsage)
+	{
+		case vk::BufferUsageFlagBits::eVertexBuffer:
+			return vertices.data();
+
+		case vk::BufferUsageFlagBits::eIndexBuffer:
+			return indices.data();
+	}
+
+	return nullptr;
 }
 
 // musimy jeszcze zbindować VertexBuffer w pipeline

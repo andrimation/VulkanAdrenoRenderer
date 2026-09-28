@@ -45,9 +45,26 @@ struct Vertex
 
 // Poniżej -> interleaving vertex attributes - czyli sytuacja kiedy mamy vector/array vertexów które trzymają pozycje, color itp
 // - jako przeciwieństwo tego można mieć osobne array/vectory pozycji, colorów itp
+/* Vertices old - before index buffer
 const std::vector<Vertex> vertices = {
     {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
     {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+
+    {{-0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{-0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+    {{-1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}}
+};
+*/ 
+
+const std::vector<Vertex> vertices = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
 };
 
+// We can stick to uint16_t for now because we’re using less than 65535 unique vertices.
+const std::vector<uint16_t> indices = {
+    0, 1, 2, 2, 3, 0
+};

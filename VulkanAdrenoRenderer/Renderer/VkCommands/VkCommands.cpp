@@ -6,7 +6,7 @@
 #include "../VertexBuffer/VertexBuffer.h"
 #include "../VkProfiler/VkProfilerGPU.h"
 
-void Vk_Commands::InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain,Vk_VertexBuffer* InVertexBuffer)
+void Vk_Commands::InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain,Vk_Buffers* InVertexBuffer)
 {
 	CreateCommandPool(InContext);
 	CreateCommandBuffers(InContext);
@@ -35,7 +35,7 @@ void Vk_Commands::CreateCommandBuffers(Vk_Context* InContext)
 	commandBuffers = vk::raii::CommandBuffers(InContext->logicalDevice, commandBufferAllocateInfo);
 }
 
-void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline, Vk_VertexBuffer* InVertexBuffer,Vk_ProfilerGPU* InProfiler)
+void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline, Vk_Buffers* InBuffers,Vk_ProfilerGPU* InProfiler)
 {
 	//vk::CommandBufferBeginInfo beginInfo{
 	//	.flags = 
@@ -78,17 +78,30 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	
 	// bindujemy vertex buffer
 	// To puki co zakomentować i zbudować plik slang.spv
-	commandBuffer.bindVertexBuffers(0, **InVertexBuffer->GetVertexBuffer(), {0});
+	commandBuffer.bindVertexBuffers(0, **InBuffers->GetVertexBuffer(), {0});
+	commandBuffer.bindIndexBuffer(**InBuffers->GetIndexBuffer(),0,vk::IndexType::eUint16);
 
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
 
+	/*  <- Jako że zaczynamu używać index buffer, to przechodzimy na .drawIndexed(
 	commandBuffer.draw(
-		static_cast<uint32_t>(vertices.size()),  // <- vertex count  ( o bo mamy 3 w trójkącie )
+		static_cast<uint32_t>(vertices.size()),  // <- vertex count  //( o bo mamy 3 w trójkącie )
 		1,  // <- instance count ( używane do instanced rendering ) 
 		0,  // first vertex   - definiuje the lowest value of SV_VertexID
 		0   // first instance - definiuje the lowest value of SV_InstanceID
 	);
+	*/ 
+
+	commandBuffer.drawIndexed(
+		static_cast<uint32_t>(indices.size()),  // <- index count
+		1,  // <- instance count ( używane do instanced rendering ) 
+		0,  // first index   - definiuje the lowest value of SV_VertexID
+		0,  // vertex offset - offset do pierwszego vertex w buforze vertexów
+		0   // first instance - definiuje the lowest value of SV_InstanceID
+
+	);
+
 	commandBuffer.endRendering();
 
 	// Po wyrenderowaniu musimy przekształcić Image layout do vk::ImageLayout::ePresentSrcKHR <- zeby nadawało się do zaprezentowania na screenie

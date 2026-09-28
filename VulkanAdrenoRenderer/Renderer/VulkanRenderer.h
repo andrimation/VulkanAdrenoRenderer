@@ -72,7 +72,7 @@ private:
 	Vk_Pipeline VulkanPipeline;
 	Vk_Commands VulkanCommands;
 	Vk_Synchronization VulkanSynchronization;
-	Vk_VertexBuffer VulkanVertexBuffer;
+	Vk_Buffers VulkanVertexBuffer;
 
 	// Profilers
 	Vk_FrameTimer FrameTimer;
