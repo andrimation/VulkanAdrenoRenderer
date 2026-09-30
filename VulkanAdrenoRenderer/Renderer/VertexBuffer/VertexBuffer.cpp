@@ -1,10 +1,7 @@
 #include "VertexBuffer.h"
-#include "VertexBuffer.h"
-#include "VertexBuffer.h"
-#include "VertexBuffer.h"
-#include "VertexBuffer.h"
+#include "../VkSceneTransforms/VkSceneTransforms.h"
 
-void Vk_Buffers::CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
+void Vk_Buffers::CreateBuffers(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
 {	
 	if (InUploadMode == EBufferDataUploadMode::Direct)
 	{
@@ -91,6 +88,29 @@ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Vk_Buffers::CreateBuffer(vk:
 	buffer.bindMemory(*bufferMemory, 0);
 
 	return { std::move(buffer),std::move(bufferMemory) };
+}
+
+void Vk_Buffers::CreateUniformBuffers(uint32_t InMaxFramesInFlight, vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice)
+{
+	for (size_t i = 0; i < InMaxFramesInFlight; i++)
+	{
+		vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+
+		auto [buffer, bufferMemory] = CreateBuffer(
+			InDevice,
+			InPhysicalDevice,
+			bufferSize,
+			vk::BufferUsageFlagBits::eUniformBuffer,
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+		);
+
+		uniformBuffers.push_back(std::move(buffer));
+		uniformBuffersMemory.push_back(std::move(bufferMemory));
+
+		// Mapowanie buforów kosztuje, więc utrzymujemy bufory zmapowane przez cały okres działania programu
+		// i dzięki temu mamy do nich dostęp z tego vectora - i możemy przekazywać na bieżąco do niego dane
+		uniformBuffersMapped.push_back(uniformBuffersMemory.back().mapMemory(0, bufferSize));
+	}
 }
 
 void Vk_Buffers::CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource,uint32_t InMemoryToMapSize)

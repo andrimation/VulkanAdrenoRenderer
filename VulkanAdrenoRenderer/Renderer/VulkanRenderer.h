@@ -45,10 +45,10 @@ public:
 		VulkanContext.InitVkContext(&Window);
 		VulkanSwapChain.InitVkSwapChain(&VulkanContext,&Window);
 		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain);		
-		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanVertexBuffer);
+		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanBuffersObject);
 
 		// Inicjalizując Staging musimy mieć już zainicjalizowane commandPool
-		VulkanVertexBuffer.InitVkVertexBuffer(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, EBufferDataUploadMode::Direct, &VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
+		VulkanBuffersObject.InitVkBuffers(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, EBufferDataUploadMode::Direct, MAX_FRAMES_IN_FLIGHT,&VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
 
 		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 		GPUProfiler.InitProfilerGPU(VulkanContext.physicalDevice, VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);
@@ -72,7 +72,7 @@ private:
 	Vk_Pipeline VulkanPipeline;
 	Vk_Commands VulkanCommands;
 	Vk_Synchronization VulkanSynchronization;
-	Vk_Buffers VulkanVertexBuffer;
+	Vk_Buffers VulkanBuffersObject;
 
 	// Profilers
 	Vk_FrameTimer FrameTimer;

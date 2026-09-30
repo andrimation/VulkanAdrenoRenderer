@@ -15,6 +15,7 @@ enum class EBufferDataUploadMode
 	Staging  // <- staging buffer - czyli najpierw kopiujemy dane do bufora w pamięci CPU a następnie do osobnego bufora w pamięci GPU ( może być szybsze dla kart z własnym VRAM )
 };
 
+
 // jeśli GPU ma własny VRAM to vk::MemoryPropertyFlagBits::eDeviceLocal (czyli jego własny ram) jest najlepszą
 // pamięcią do odczytu dla niego. ( jednocześnie, zwykle ta pamięć nie jest dostępna dla CPU )
 
@@ -35,17 +36,28 @@ class Vk_Buffers
 public:
 	Vk_Buffers() {};
 
-	void InitVkVertexBuffer(vk::raii::Device* InLogicalDevice,vk::raii::PhysicalDevice* InPhysicalDevice,EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct, vk::raii::CommandPool* InCommandPool = nullptr, vk::raii::Queue* InGraphicsQueue = nullptr)
+	void InitVkBuffers(
+		vk::raii::Device* InLogicalDevice,
+		vk::raii::PhysicalDevice* InPhysicalDevice,
+		EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct, 
+		uint32_t InMaxFramesInFlight,
+		vk::raii::CommandPool* InCommandPool = nullptr, 
+		vk::raii::Queue* InGraphicsQueue = nullptr
+	)
 	{
-		CreateBuffer(InLogicalDevice,InPhysicalDevice,InUploadMode, InCommandPool, InGraphicsQueue);
+		CreateBuffers(InLogicalDevice,InPhysicalDevice,InUploadMode, InCommandPool, InGraphicsQueue);
+		CreateUniformBuffers(InMaxFramesInFlight,InLogicalDevice, InPhysicalDevice);
 	};
 
 	vk::raii::Buffer* GetVertexBuffer() { return &vertexBuffer; };
 	vk::raii::Buffer* GetIndexBuffer()  { return &indexBuffer;  };
 
+	// UWAGA -> Generalnie istnieje też sposób łączenia bufferów np vertex i index w jeden bufor, żeby było
+	// bardziej cache friendly.
+
 private:
 
-	void CreateBuffer(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue);
+	void CreateBuffers(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue);
 		
 	void CreateUsingDirectBuffer(
 		vk::BufferUsageFlagBits InBufferUsage,
@@ -69,6 +81,8 @@ private:
 		vk::MemoryPropertyFlags InMemoryProperties
 	);
 
+	void CreateUniformBuffers(uint32_t InMaxFramesInFlight, vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice);
+
 	uint32_t GetBufferMemorySize(vk::BufferUsageFlagBits InBufferUsage);
 	const void* FindDataSourceToCopy(vk::BufferUsageFlagBits InBufferUsage);
 	void CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource, uint32_t InMemoryToMapSize);
@@ -89,4 +103,8 @@ private:
 	vk::raii::DeviceMemory vertexBufferMemory = nullptr;
 	vk::raii::Buffer indexBuffer = nullptr;
 	vk::raii::DeviceMemory indexBufferMemory = nullptr;
+
+	std::vector<vk::raii::Buffer> uniformBuffers;
+	std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
+	std::vector<void*> uniformBuffersMapped;
 };

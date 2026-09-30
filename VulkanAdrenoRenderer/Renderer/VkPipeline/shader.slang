@@ -1,3 +1,11 @@
+struct SceneTransformMatrices
+{
+	float4x4 model;
+	float4x4 view;
+	float4x4 projection;
+};
+ConstantBuffer<SceneTransformMatrices> ubo;
+
 struct VertexInput
 {
 	float2 inPosition;
@@ -14,7 +22,8 @@ struct VertexOutput
 VertexOutput vertMain(VertexInput inVertex)
 {
 	VertexOutput output;
-	output.sv_position = float4(inVertex.inPosition,0.0,1.0);
+	// mnożymy inVertex przez macieże:  model, view, position
+	output.sv_position =   mul(ubo.projection ,mul(ubo.view, mul(ubo.model, float4(inVertex.inPosition,0.0,1.0))));
 	output.color = inVertex.inColor;
 	
 	return output;
