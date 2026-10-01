@@ -12,9 +12,13 @@ public:
 
 	Vk_Pipeline() {};
 
-	void InitVkPipeline(Vk_Context* InContext, WindowGLFW* InWindow, Vk_SwapChain* InSwapChain)
+	void InitVkPipeline(Vk_Context* InContext, WindowGLFW* InWindow, Vk_SwapChain* InSwapChain, vk::raii::DescriptorSetLayout* InDescriptorSetLayout)
 	{
-		CreateDescriptorSetLayout(InContext);
+		Context = InContext;
+		Window = InWindow;
+		SwapChain = InSwapChain;
+		descriptorSetLayout = InDescriptorSetLayout;
+
 		CreateGraphicsPipeline(InContext, InWindow, InSwapChain);
 	};
 
@@ -24,16 +28,17 @@ public:
 	}
 
 private:
-
-	void CreateDescriptorSetLayout(Vk_Context* InContext); // DescriptorSetLatout pozwala na przekazywanie do shadera globalnych danych np matryc transformacji, czy innych danych które nie są vertexami
-	// Generalnie do przekazania DescriprorSet używa się bufferów 
 	void CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWindow, Vk_SwapChain* InSwapChain);
 	static std::vector<uint32_t> ReadFile(const std::string& filename);
 
 	[[nodiscard]]
 	vk::raii::ShaderModule CreateShaderModule(const std::vector<uint32_t>& shaderBytes,Vk_Context* InContext);
 
-	vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
+	Vk_Context* Context;
+	WindowGLFW* Window;
+	Vk_SwapChain* SwapChain;
+
+	vk::raii::DescriptorSetLayout* descriptorSetLayout;
 	vk::raii::PipelineLayout pipelineLayout = nullptr;
 	vk::raii::Pipeline pipeline = nullptr;
 };

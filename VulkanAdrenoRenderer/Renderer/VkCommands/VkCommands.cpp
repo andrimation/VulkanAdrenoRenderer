@@ -1,4 +1,6 @@
 #include "VkCommands.h"
+#include "VkCommands.h"
+#include "VkCommands.h"
 
 #include "../VkContext/VkContext.h"
 #include "../VkPipeline/VkPipeline.h"
@@ -81,7 +83,8 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	commandBuffer.bindVertexBuffers(0, **InBuffers->GetVertexBuffer(), {0});
 	commandBuffer.bindIndexBuffer(**InBuffers->GetIndexBuffer(),0,vk::IndexType::eUint16);
 
-	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
+	// uwaga -> robimy -static_cast<float>(InSwapChain->swapChainExtent.height) bo macier perspektywy z biblioteki glm na odwróconą dla OpenGL oś Y
+	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), -static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
 
 	/*  <- Jako że zaczynamu używać index buffer, to przechodzimy na .drawIndexed(
@@ -151,3 +154,4 @@ void Vk_Commands::TransitionImageLayout(uint32_t imageIndex, uint32_t frameIndex
 
 	commandBuffers[frameIndex].pipelineBarrier2(dependencyInfo);
 }
+

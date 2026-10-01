@@ -1,5 +1,7 @@
 #include "VertexBuffer.h"
+#include "VertexBuffer.h"
 #include "../VkSceneTransforms/VkSceneTransforms.h"
+
 
 void Vk_Buffers::CreateBuffers(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue)
 {	
@@ -94,7 +96,7 @@ void Vk_Buffers::CreateUniformBuffers(uint32_t InMaxFramesInFlight, vk::raii::De
 {
 	for (size_t i = 0; i < InMaxFramesInFlight; i++)
 	{
-		vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+		vk::DeviceSize bufferSize = sizeof(SceneTransformMatrices);
 
 		auto [buffer, bufferMemory] = CreateBuffer(
 			InDevice,

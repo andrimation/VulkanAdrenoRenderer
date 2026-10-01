@@ -29,6 +29,8 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 #include "VkSynchronization/VkSynchronization.h"
 #include "VertexBuffer/VertexFactory.h"
 #include "VertexBuffer/VertexBuffer.h"
+#include "VkSceneTransforms/VkSceneTransforms.h"
+#include "VkDescriptors/VkDescriptors.h"
 
 #include "VkProfiler/VkFrameTimer.h"
 #include "VkProfiler/VkProfilerCPU.h"
@@ -44,14 +46,17 @@ public:
 		Window.InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"VulkanAdrenoRenderer",this,framebufferResizeCallback);
 		VulkanContext.InitVkContext(&Window);
 		VulkanSwapChain.InitVkSwapChain(&VulkanContext,&Window);
-		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain);		
+		VulkanDescriptors.InitVk_Descriptors(&VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);
+		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain,VulkanDescriptors.GetDescriptorsSetLayout());		
 		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanBuffersObject);
 
 		// Inicjalizując Staging musimy mieć już zainicjalizowane commandPool
-		VulkanBuffersObject.InitVkBuffers(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, EBufferDataUploadMode::Direct, MAX_FRAMES_IN_FLIGHT,&VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
+		VulkanBuffersObject.InitVkBuffers(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, MAX_FRAMES_IN_FLIGHT, EBufferDataUploadMode::Direct, &VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
 
 		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 		GPUProfiler.InitProfilerGPU(VulkanContext.physicalDevice, VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);
+
+		VulkanSceneTransforms.InitVk_SceneTransforms(VulkanSwapChain.swapChainExtent.width, VulkanSwapChain.swapChainExtent.height);
 
 		RunMainLoop();
 	};
@@ -73,6 +78,8 @@ private:
 	Vk_Commands VulkanCommands;
 	Vk_Synchronization VulkanSynchronization;
 	Vk_Buffers VulkanBuffersObject;
+	Vk_SceneTransforms VulkanSceneTransforms;
+	Vk_Descriptors VulkanDescriptors;
 
 	// Profilers
 	Vk_FrameTimer FrameTimer;

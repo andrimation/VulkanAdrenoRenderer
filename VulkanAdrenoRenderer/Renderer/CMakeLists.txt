@@ -29,6 +29,8 @@ add_library(VulkanRenderer STATIC
     "VkProfiler/VkFrameTimer.cpp"
     "VkSceneTransforms/VkSceneTransforms.h"
     "VkSceneTransforms/VkSceneTransforms.cpp"
+    "VkDescriptors/VkDescriptors.h"
+    "VkDescriptors/VkDescriptors.cpp"
 )
 
 target_include_directories(VulkanRenderer 

@@ -39,8 +39,8 @@ public:
 	void InitVkBuffers(
 		vk::raii::Device* InLogicalDevice,
 		vk::raii::PhysicalDevice* InPhysicalDevice,
-		EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct, 
 		uint32_t InMaxFramesInFlight,
+		EBufferDataUploadMode InUploadMode = EBufferDataUploadMode::Direct, 	
 		vk::raii::CommandPool* InCommandPool = nullptr, 
 		vk::raii::Queue* InGraphicsQueue = nullptr
 	)
@@ -51,6 +51,7 @@ public:
 
 	vk::raii::Buffer* GetVertexBuffer() { return &vertexBuffer; };
 	vk::raii::Buffer* GetIndexBuffer()  { return &indexBuffer;  };
+	void* GetUniformBufferMapped(uint32_t InIndex)  { return &uniformBuffersMapped[InIndex];  };
 
 	// UWAGA -> Generalnie istnieje też sposób łączenia bufferów np vertex i index w jeden bufor, żeby było
 	// bardziej cache friendly.

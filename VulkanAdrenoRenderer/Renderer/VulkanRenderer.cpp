@@ -69,6 +69,13 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 		throw std::runtime_error("Failed to acquire swap chain image");
 	}
 
+	// Poniżej kopiujemy matryce projekcji, transformacji i widoku do uniform bufora
+	memcpy(VulkanBuffersObject.GetUniformBufferMapped(
+		VulkanSynchronization.frameIndex),
+		&VulkanSceneTransforms,
+		sizeof(Vk_SceneTransforms)
+	);
+
 	InContext->logicalDevice.resetFences(*VulkanSynchronization.drawFences[VulkanSynchronization.frameIndex]); // <- przeniesienie tutaj wynika z tego, że jak mamy logicalDevice.waitForFences(*drawFences[frameIndex] to czekamy aż fence zostanie zasygnalizowany że
 	// "można robić". Jeśli zresetujemy fence i wyjdziemy, to nie wywoła się nigdy funkcja graphicsQueue.submit(submitInfo, *drawFences[frameIndex]);, a własnie jej wykonanie gwarantuje "zasygnalizowanie" fence
 	// - waitForFences(..) czeka aż fence będzie zasygnalizowany. Początkowo mnie to zmylało - ale - nasz fence tworzony jest w stanie eSignaled - więc pierwsze wywołanie waitForFences() przechodzi, bo fencje jest eSignaled.

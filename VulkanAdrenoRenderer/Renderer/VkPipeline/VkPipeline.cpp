@@ -10,28 +10,6 @@
 #include <iostream>
 #include <fstream> // żeby odczytywać pliki
 
-void Vk_Pipeline::CreateDescriptorSetLayout(Vk_Context* InContext)
-{
-	vk::DescriptorSetLayoutBinding uboLayoutBinding{
-		.binding = 0,  // <- ten binding jest dostępny pod indexem 0
-		.descriptorType = vk::DescriptorType::eUniformBuffer, // pod indexem 0 będzie się znajdował uniform buffer
-		.descriptorCount = 1, // pod indexem 0 będzie 1 descriptor tego typu
-		.stageFlags = vk::ShaderStageFlagBits::eVertex // <- informuje na którym etapie shadera będzie dostępny ten descriptor
-	};
-
-	// DescriptorSetLatout - schemat danych
-	// DescriptorSet       - konkretne dane zgodne ze schematem
-	vk::DescriptorSetLayoutCreateInfo layoutInfo
-	{
-		.bindingCount = 1,
-		.pBindings = &uboLayoutBinding
-	};
-
-	// Przypisujemy opis descriptora do descriptorSetLayout, a następnie przekażemy descriptorSetLayout 
-	// do PipelineLayoutCreateInfo
-	descriptorSetLayout = vk::raii::DescriptorSetLayout(InContext->logicalDevice, layoutInfo);
-}
-
 void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWindow, Vk_SwapChain* InSwapChain)
 {
 	std::vector<uint32_t> shaderCode = ReadFile("slang.spv");
@@ -171,7 +149,7 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 	// teraz użyjemy tego, aby przekazać matryce transformacji do VertexShadera
 	vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{
 		.setLayoutCount = 1,
-		.pSetLayouts = &*descriptorSetLayout,
+		.pSetLayouts = &**descriptorSetLayout,
 		.pushConstantRangeCount = 0
 	};
 
