@@ -90,7 +90,7 @@ vk::Extent2D Vk_SwapChain::ChooseSwapChainExtent(vk::SurfaceCapabilitiesKHR cons
 	// jeśli większy niż maxImageExtent - to analogicznie zwracamy maxImageExtent
 	return {
 		std::clamp<uint32_t>(width,capabilities.minImageExtent.width,capabilities.maxImageExtent.width),
-		std::clamp<uint32_t>(width,capabilities.minImageExtent.height,capabilities.maxImageExtent.height)
+		std::clamp<uint32_t>(height,capabilities.minImageExtent.height,capabilities.maxImageExtent.height)
 	};
 }
 

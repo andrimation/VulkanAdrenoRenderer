@@ -13,7 +13,14 @@ class Vk_Commands
 public:
 	Vk_Commands() = default;
 
-	void InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain, Vk_Buffers* InVertexBuffer);
+	void InitVkCommands(
+		Vk_Context* InContext, 
+		Vk_SwapChain* InSwapChain, 
+		Vk_Buffers* InVertexBuffer,
+		vk::raii::PipelineLayout* InPipelineLayout, 
+		std::vector<vk::raii::DescriptorSet>* InDescriptorSets
+	);
+
 	void RecordCommandBuffer(uint32_t imageIndex, uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline,Vk_Buffers* InBuffers,Vk_ProfilerGPU* InProfiler);
 
 private:
@@ -29,4 +36,7 @@ public:
 	static constexpr uint32_t MaxFramesInFlight = 2;
 	vk::raii::CommandPool commandPool = nullptr;
 	std::vector<vk::raii::CommandBuffer> commandBuffers;
+
+	vk::raii::PipelineLayout* pipelineLayout;
+	std::vector<vk::raii::DescriptorSet>* descriptorSets;
 };

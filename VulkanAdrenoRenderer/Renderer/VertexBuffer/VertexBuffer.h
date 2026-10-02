@@ -51,7 +51,8 @@ public:
 
 	vk::raii::Buffer* GetVertexBuffer() { return &vertexBuffer; };
 	vk::raii::Buffer* GetIndexBuffer()  { return &indexBuffer;  };
-	void* GetUniformBufferMapped(uint32_t InIndex)  { return &uniformBuffersMapped[InIndex];  };
+	std::vector<vk::raii::Buffer>* GetUniformBuffers() { return &uniformBuffers; };
+	void* GetUniformBufferMapped(uint32_t InIndex)  { return uniformBuffersMapped[InIndex];  };
 
 	// UWAGA -> Generalnie istnieje też sposób łączenia bufferów np vertex i index w jeden bufor, żeby było
 	// bardziej cache friendly.

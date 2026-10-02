@@ -22,9 +22,14 @@ public:
 		CreateGraphicsPipeline(InContext, InWindow, InSwapChain);
 	};
 
-	const vk::raii::Pipeline& GetPipeline() const
+	vk::raii::Pipeline* GetPipeline()
 	{
-		return pipeline;
+		return &pipeline;
+	}
+
+	vk::raii::PipelineLayout* GetPipelineLayout()
+	{
+		return &pipelineLayout;
 	}
 
 private:

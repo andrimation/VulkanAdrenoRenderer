@@ -1,12 +1,17 @@
 #include "VkDescriptors.h"
 
 #include "../VkContext/VkContext.h"
+#include "../VkSceneTransforms/VkSceneTransforms.h"
 
 void Vk_Descriptors::InitVk_Descriptors(vk::raii::Device* InLogicalDevice, uint32_t InMaxFramesInFlight)
 {
 	MaxFramesInFlight = InMaxFramesInFlight;
 	LogicalDevice = InLogicalDevice;
+	
 	CreateDescriptorSetLayout();
+
+	CreateDescriptorPool();
+	//CreateDescriptorSets();
 }
 
 void Vk_Descriptors::CreateDescriptorSetLayout()
@@ -48,8 +53,37 @@ void Vk_Descriptors::CreateDescriptorPool()
 	descriptorPool = vk::raii::DescriptorPool(*LogicalDevice, poolInfo);
 }
 
-void Vk_Descriptors::CreateDescriptorSets()
+void Vk_Descriptors::CreateDescriptorSets(std::vector<vk::raii::Buffer>* InUniformBuffers)
 {
 	std::vector<vk::DescriptorSetLayout> layouts(MaxFramesInFlight, *descriptorSetLayout);
 
+	vk::DescriptorSetAllocateInfo allocInfo{
+		.descriptorPool = descriptorPool,
+		.descriptorSetCount = static_cast<uint32_t>(layouts.size()),
+		.pSetLayouts = layouts.data()
+	};
+
+	descriptorSets = LogicalDevice->allocateDescriptorSets(allocInfo);
+
+	for (int i = 0; i < MaxFramesInFlight; i++)
+	{
+		vk::DescriptorBufferInfo bufferInfo
+		{
+			.buffer = (*InUniformBuffers)[i],
+			.offset = 0,
+			.range = sizeof(SceneTransformMatrices)
+		};
+
+		vk::WriteDescriptorSet descriptorWrite
+		{
+			.dstSet = descriptorSets[i],
+			.dstBinding = 0,  // <- ten binding odpowiada bindingowi 0 z CreateDescriptorSetLayout()
+			.dstArrayElement = 0,
+			.descriptorCount = 1,
+			.descriptorType = vk::DescriptorType::eUniformBuffer,
+			.pBufferInfo = &bufferInfo
+		};
+
+		LogicalDevice->updateDescriptorSets(descriptorWrite, {});
+	}
 }

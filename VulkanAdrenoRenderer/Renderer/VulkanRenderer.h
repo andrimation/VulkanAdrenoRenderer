@@ -47,11 +47,14 @@ public:
 		VulkanContext.InitVkContext(&Window);
 		VulkanSwapChain.InitVkSwapChain(&VulkanContext,&Window);
 		VulkanDescriptors.InitVk_Descriptors(&VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);
-		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain,VulkanDescriptors.GetDescriptorsSetLayout());		
-		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanBuffersObject);
+		VulkanPipeline.InitVkPipeline(&VulkanContext, &Window, &VulkanSwapChain,VulkanDescriptors.GetDescriptorSetLayout());		
+		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanBuffersObject,VulkanPipeline.GetPipelineLayout(),VulkanDescriptors.GetDescriptorSets());
 
 		// Inicjalizując Staging musimy mieć już zainicjalizowane commandPool
 		VulkanBuffersObject.InitVkBuffers(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, MAX_FRAMES_IN_FLIGHT, EBufferDataUploadMode::Direct, &VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
+
+		// CreateDescriptorSets() musi być wywołane po InitVkBuffers, bo 
+		VulkanDescriptors.CreateDescriptorSets(VulkanBuffersObject.GetUniformBuffers());
 
 		VulkanSynchronization.InitVkSynchronization(&VulkanContext, &VulkanSwapChain, MAX_FRAMES_IN_FLIGHT);
 		GPUProfiler.InitProfilerGPU(VulkanContext.physicalDevice, VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);

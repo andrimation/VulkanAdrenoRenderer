@@ -97,7 +97,8 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 		.rasterizerDiscardEnable = false,  // <- jeśli true to powoduje że geometria nie przechodzi przez rasterizer
 		.polygonMode = vk::PolygonMode::eFill,  // <- użycie innego mode niż eFill wymaga włączenia GPU feature
 		.cullMode = vk::CullModeFlagBits::eBack, // <- można włączyć, wyłączyć, albo ustawić na back/front
-		.frontFace = vk::FrontFace::eClockwise,  // <- wskazuje która kolejność wierzchołków będzie ustalać czy jest front czy backface
+		.frontFace = vk::FrontFace::eCounterClockwise,  // <- wskazuje która kolejność wierzchołków będzie ustalać czy jest front czy backface
+		// zamieniamy eClockwise na eCounterClockwise - bo zmieniliśy kierunek osi Y	
 		.depthBiasEnable = vk::False,  // <- nie wiem po chuja vk::False - może być zwykłe false
 		.lineWidth = 1.0f  // <- ustawia grubość linii w kontekście ilości fragmentów ( zwiększenie wielkości lineWidth ponad 1.0 wymaga włączenia wideLines GPU feature )
 		// <- lineWidth jest używane gdy renderujemy wireframe. Jak renderujemy zwykłe eFill to właściwie nie ma znaczenia

@@ -13,13 +13,15 @@ public:
 	Vk_Descriptors() = default;
 
 	void InitVk_Descriptors(vk::raii::Device* InLogicalDevice, uint32_t InMaxFramesInFlight);	
+	void CreateDescriptorSets(std::vector<vk::raii::Buffer>* InUniformBuffers);
 	
-	vk::raii::DescriptorSetLayout* GetDescriptorsSetLayout() { return &descriptorSetLayout; };
+	vk::raii::DescriptorSetLayout* GetDescriptorSetLayout() { return &descriptorSetLayout; };
+	std::vector<vk::raii::DescriptorSet>* GetDescriptorSets() { return &descriptorSets; };
 
 private:
 	void CreateDescriptorSetLayout();
 	void CreateDescriptorPool();
-	void CreateDescriptorSets();
+	
 
 	vk::raii::Device* LogicalDevice;
 	uint32_t MaxFramesInFlight;

@@ -8,8 +8,16 @@
 #include "../VertexBuffer/VertexBuffer.h"
 #include "../VkProfiler/VkProfilerGPU.h"
 
-void Vk_Commands::InitVkCommands(Vk_Context* InContext, Vk_SwapChain* InSwapChain,Vk_Buffers* InVertexBuffer)
+void Vk_Commands::InitVkCommands(
+	Vk_Context* InContext,
+	Vk_SwapChain* InSwapChain,
+	Vk_Buffers* InVertexBuffer, 
+	vk::raii::PipelineLayout* InPipelineLayout, 
+	std::vector<vk::raii::DescriptorSet>* InDescriptorSets)
 {
+	pipelineLayout = InPipelineLayout;
+	descriptorSets = InDescriptorSets;
+
 	CreateCommandPool(InContext);
 	CreateCommandBuffers(InContext);
 }
@@ -84,7 +92,17 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	commandBuffer.bindIndexBuffer(**InBuffers->GetIndexBuffer(),0,vk::IndexType::eUint16);
 
 	// uwaga -> robimy -static_cast<float>(InSwapChain->swapChainExtent.height) bo macier perspektywy z biblioteki glm na odwróconą dla OpenGL oś Y
-	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), -static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f));
+	commandBuffer.setViewport(
+		0, 
+		vk::Viewport(
+			0.0f, 
+			static_cast<float>(InSwapChain->swapChainExtent.height),
+			static_cast<float>(InSwapChain->swapChainExtent.width),
+			-static_cast<float>(InSwapChain->swapChainExtent.height), 
+			0.0f,
+			1.0f
+		)
+	);
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
 
 	/*  <- Jako że zaczynamu używać index buffer, to przechodzimy na .drawIndexed(
@@ -95,6 +113,14 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 		0   // first instance - definiuje the lowest value of SV_InstanceID
 	);
 	*/ 
+	// Bindujemy DesctiptorSets
+	commandBuffers[frameIndex].bindDescriptorSets(
+		vk::PipelineBindPoint::eGraphics,
+		*pipelineLayout,
+		0,
+		*(*descriptorSets)[frameIndex],
+		nullptr
+	);
 
 	commandBuffer.drawIndexed(
 		static_cast<uint32_t>(indices.size()),  // <- index count

@@ -2,6 +2,8 @@
 
 void Vk_SceneTransforms::InitVk_SceneTransforms(uint32_t SwapChainExtentWidth, uint32_t SwapChainExtentHeight)
 {
+	CameraObject.model = glm::mat4(1.0f);
+
 	CameraObject.view = glm::lookAt(
 		glm::vec3(2.0f, 2.0f, 2.0f),  // cameraPosition -> czyli gdzie znajduje się camera
 		glm::vec3(0.0f, 0.0f, 0.0f),  // targetPosition -> czyli gdzie znajduje się to na co kamera patrzy

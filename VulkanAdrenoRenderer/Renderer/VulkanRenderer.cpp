@@ -72,8 +72,8 @@ void VulkanRenderer::DrawFrame(Vk_Context* InContext, Vk_SwapChain* InSwapChain,
 	// Poniżej kopiujemy matryce projekcji, transformacji i widoku do uniform bufora
 	memcpy(VulkanBuffersObject.GetUniformBufferMapped(
 		VulkanSynchronization.frameIndex),
-		&VulkanSceneTransforms,
-		sizeof(Vk_SceneTransforms)
+		VulkanSceneTransforms.GetCameraObject(),
+		sizeof(SceneTransformMatrices)
 	);
 
 	InContext->logicalDevice.resetFences(*VulkanSynchronization.drawFences[VulkanSynchronization.frameIndex]); // <- przeniesienie tutaj wynika z tego, że jak mamy logicalDevice.waitForFences(*drawFences[frameIndex] to czekamy aż fence zostanie zasygnalizowany że
