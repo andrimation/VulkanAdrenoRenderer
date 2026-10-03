@@ -95,8 +95,8 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	commandBuffer.setViewport(
 		0, 
 		vk::Viewport(
-			0.0f, 
-			static_cast<float>(InSwapChain->swapChainExtent.height),
+			0.0f, // x
+			static_cast<float>(InSwapChain->swapChainExtent.height),  // y
 			static_cast<float>(InSwapChain->swapChainExtent.width),
 			-static_cast<float>(InSwapChain->swapChainExtent.height), 
 			0.0f,

@@ -16,6 +16,9 @@ void VulkanRenderer::MainLoop()
 	{
 		const float DeltaTime = FrameTimer.Tick();
 
+		CameraController.Update(DeltaTime);
+
+
 		glfwPollEvents();
 		DrawFrame(&VulkanContext, &VulkanSwapChain, &VulkanPipeline);
 

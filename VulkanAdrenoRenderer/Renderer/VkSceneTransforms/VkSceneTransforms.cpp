@@ -23,3 +23,12 @@ void Vk_SceneTransforms::InitVk_SceneTransforms(uint32_t SwapChainExtentWidth, u
 	// commandBuffer.setViewport(0, vk::Viewport(0.0f, static_cast<float>(swapChainExtent.height), static_cast<float>(swapChainExtent.width), -static_cast<float>(swapChainExtent.height), 0.0f, 1.0f));
 	// CameraObject.projection[1][1] *= -1; -> to rozwiązanie skutkowałoby koniecznością flipowania fejsów
 }
+
+void Vk_SceneTransforms::UpdateCameraView(const glm::vec3& InPosition, const glm::vec3& InTarget, const glm::vec3& InUpDirection)
+{
+	CameraObject.view = glm::lookAt(
+		InPosition,
+		InPosition + InTarget,
+		InUpDirection
+	);
+}

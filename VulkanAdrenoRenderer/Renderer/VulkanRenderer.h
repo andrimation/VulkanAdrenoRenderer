@@ -31,6 +31,7 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 #include "VertexBuffer/VertexBuffer.h"
 #include "VkSceneTransforms/VkSceneTransforms.h"
 #include "VkDescriptors/VkDescriptors.h"
+#include "VkCameraController/VkCameraController.h"
 
 #include "VkProfiler/VkFrameTimer.h"
 #include "VkProfiler/VkProfilerCPU.h"
@@ -60,6 +61,7 @@ public:
 		GPUProfiler.InitProfilerGPU(VulkanContext.physicalDevice, VulkanContext.logicalDevice, MAX_FRAMES_IN_FLIGHT);
 
 		VulkanSceneTransforms.InitVk_SceneTransforms(VulkanSwapChain.swapChainExtent.width, VulkanSwapChain.swapChainExtent.height);
+		CameraController.Init(Window.window, &VulkanSceneTransforms);
 
 		RunMainLoop();
 	};
@@ -92,6 +94,9 @@ private:
 	// Profiler GPU natomiast mierzą czas wykonania tego co faktycznie robi GPU - więc w record command buffer na początku command buffera profiler dodaje command pobrania timestampu
 	// i na końcu wykonania wszystkich instrukcji z command buffera profiler również pobiera timestamp ( żądanie pobrania timestampu zasadniczo też jest pisane do command buffera - to taka sama instrukcja dla 
 	// gpu jak draw ). Później po podniesieniu fence dla CPU, odczytujemy timestampy
+
+	// Camera Movement
+	Vk_CameraController CameraController;
 
 	bool frameBufferResized = false;
 

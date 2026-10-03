@@ -19,6 +19,7 @@ public:
 	Vk_SceneTransforms() = default;
 
 	void InitVk_SceneTransforms(uint32_t SwapChainExtentWidth, uint32_t SwapChainExtentHeight);
+	void UpdateCameraView(const glm::vec3& InPosition, const glm::vec3& InTarget, const glm::vec3& InUpDirection);
 
 	SceneTransformMatrices* GetCameraObject() { return &CameraObject; };
 	// Tu dodać update transforms -

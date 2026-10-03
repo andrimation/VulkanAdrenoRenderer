@@ -1,5 +1,4 @@
 #include "WindowGLFW.h"
-#include "WindowGLFW.h"
 
 void WindowGLFW::InitWindow(int window_width, int window_height,const char* window_title, void* InRendererPtr, GLFWframebuffersizefun InResizeCallback)
 {
@@ -10,6 +9,7 @@ void WindowGLFW::InitWindow(int window_width, int window_height,const char* wind
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);    // <- tu ustawiamy wyłączenie resize okienka ( bo z tym na początek bedzie za dużo jebania )
 
 	window = glfwCreateWindow(window_width, window_height, window_title, nullptr, nullptr);
+
 
 	// i funkcja poniżej binduje callback z eventem kiedy zmienia się rozmiar okna. Ważne - funkcja którą bindujemy
 	// musi być statczyną funkcją ( bo glfw nie wie jak prawidłowo przekazać this )

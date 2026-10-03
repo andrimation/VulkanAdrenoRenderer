@@ -31,6 +31,8 @@ add_library(VulkanRenderer STATIC
     "VkSceneTransforms/VkSceneTransforms.cpp"
     "VkDescriptors/VkDescriptors.h"
     "VkDescriptors/VkDescriptors.cpp"
+    "VkCameraController/VkCameraController.h"
+    "VkCameraController/VkCameraController.cpp"
 )
 
 target_include_directories(VulkanRenderer 
