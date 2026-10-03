@@ -10,14 +10,14 @@
 #include <iostream>
 #include <fstream> // żeby odczytywać pliki
 
-void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWindow, Vk_SwapChain* InSwapChain)
+void Vk_Pipeline::CreateGraphicsPipeline()
 {
 	std::vector<uint32_t> shaderCode = ReadFile("slang.spv");
 
 	// Sprawdzenie że alignment będzie poprawny - ale zrobić żeby przechowywać jednak bity jako uint32_t
 	//assert(shaderCode.size() % sizeof(uint32_t) == 0);
 
-	vk::raii::ShaderModule shaderModule = CreateShaderModule(shaderCode,InContext);
+	vk::raii::ShaderModule shaderModule = CreateShaderModule(shaderCode);
 
 	std::cout << "Byte:  " << sizeof(char) << "   uint32_t:  " << sizeof(uint32_t) << "\n";
 
@@ -56,7 +56,7 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 	//vk::PipelineVertexInputStateCreateInfo  vertexInputInfo;
 	
 	// Teraz wypełniamy vertexInputInfo z faktycznymi danymi - pobieramy informację o tym jak czytać vertexty
-	// z miejsca które odpowiada "vertexFactory" ( w VertexBuffer.h )
+	// z miejsca które odpowiada "vertexFactory" ( w Buffers.h )
 	vk::VertexInputBindingDescription VertexBindingDescription = Vertex::getBindingDescription();
 	std::array<vk::VertexInputAttributeDescription,2> VertexAttributeDescriptions = Vertex::getAttributeDescription();
 
@@ -74,11 +74,11 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 
 	// Viewport -  określa region framebuffera do którego będzie renderowany output ( praktycznie zawsze ma rozmiar (0,0) - (width,height)
 	// ostatnie 0.0f, 1.0f - to minDepth i maxDepth ( czyli to co się pojawia w depth buffer - standardowo zakres 0.0 do 1.0 )
-	vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(InSwapChain->swapChainExtent.width), static_cast<float>(InSwapChain->swapChainExtent.height), 0.0f, 1.0f };
+	vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(SwapChain->swapChainExtent.width), static_cast<float>(SwapChain->swapChainExtent.height), 0.0f, 1.0f };
 
 	// Scissors - określają wycinek który ma być renderowany - pixele które nie mieszczą się w ramach rectangla ze scissorsów są po prostu 
 	// ignorowane - jeśli chcemy renderować cały Viewport - to ustawiamy scissorsy tak aby pokrywały caly viewport
-	vk::Rect2D scissor{ vk::Offset2D{0,0}, InSwapChain->swapChainExtent };
+	vk::Rect2D scissor{ vk::Offset2D{0,0}, SwapChain->swapChainExtent };
 	// Viewport i scissors mogą być używane z dynamic state, a więc mogą być ustawiane dynamicznie.
 
 	// Później ilość viewportów i scissorów i viewporta i scissorsa przypisujemy do PipelineViewportStateCreateInfo
@@ -154,13 +154,13 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 		.pushConstantRangeCount = 0
 	};
 
-	pipelineLayout = vk::raii::PipelineLayout(InContext->logicalDevice, pipelineLayoutCreateInfo);
+	pipelineLayout = vk::raii::PipelineLayout(Context->logicalDevice, pipelineLayoutCreateInfo);
 
 	// Pipeline
 	vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo
 	{
 		.colorAttachmentCount = 1,
-		.pColorAttachmentFormats = &InSwapChain->swapChainSurfaceFormat.format
+		.pColorAttachmentFormats = &SwapChain->swapChainSurfaceFormat.format
 	};
 
 	vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain
@@ -182,11 +182,11 @@ void Vk_Pipeline::CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWi
 		vk::PipelineRenderingCreateInfo
 		{
 			.colorAttachmentCount = 1,
-			.pColorAttachmentFormats = &InSwapChain->swapChainSurfaceFormat.format
+			.pColorAttachmentFormats = &SwapChain->swapChainSurfaceFormat.format
 		}
 	};
 
-	pipeline = vk::raii::Pipeline(InContext->logicalDevice, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
+	pipeline = vk::raii::Pipeline(Context->logicalDevice, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 }
 
 std::vector<uint32_t> Vk_Pipeline::ReadFile(const std::string& filename)
@@ -218,7 +218,7 @@ std::vector<uint32_t> Vk_Pipeline::ReadFile(const std::string& filename)
 	return buffer;
 }
 
-vk::raii::ShaderModule Vk_Pipeline::CreateShaderModule(const std::vector<uint32_t>& shaderBytes, Vk_Context* InContext)
+vk::raii::ShaderModule Vk_Pipeline::CreateShaderModule(const std::vector<uint32_t>& shaderBytes)
 {
 	vk::ShaderModuleCreateInfo createInfo
 	{
@@ -230,5 +230,5 @@ vk::raii::ShaderModule Vk_Pipeline::CreateShaderModule(const std::vector<uint32_
 
 	// UWAGA - tu jest jakaś nieścisłość z alignmentem - bo vector zapewnia alignment ale dla char, a nie uint32_t - czyli lepiej by było przechowywać
 	// kod bitowy w formie uint32_t
-	return vk::raii::ShaderModule{ InContext->logicalDevice, createInfo };
+	return vk::raii::ShaderModule{ Context->logicalDevice, createInfo };
 }

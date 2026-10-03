@@ -11,29 +11,35 @@
 void Vk_Commands::InitVkCommands(
 	Vk_Context* InContext,
 	Vk_SwapChain* InSwapChain,
-	Vk_Buffers* InVertexBuffer, 
-	vk::raii::PipelineLayout* InPipelineLayout, 
-	std::vector<vk::raii::DescriptorSet>* InDescriptorSets)
+	Vk_Buffers* InVertexBuffer,
+	Vk_Pipeline* InPipeline,
+	std::vector<vk::raii::DescriptorSet>* InDescriptorSets,
+	Vk_ProfilerGPU* InProfiler
+)
 {
-	pipelineLayout = InPipelineLayout;
-	descriptorSets = InDescriptorSets;
+	Context = InContext;
+	SwapChain = InSwapChain;
+	Buffers = InVertexBuffer;
+	Pipeline = InPipeline;
+	DescriptorSets = InDescriptorSets;
+	Profiler = InProfiler;
 
-	CreateCommandPool(InContext);
-	CreateCommandBuffers(InContext);
+	CreateCommandPool();
+	CreateCommandBuffers();
 }
 
-void Vk_Commands::CreateCommandPool(Vk_Context* InContext)
+void Vk_Commands::CreateCommandPool()
 {
 	vk::CommandPoolCreateInfo commandPoolCreateInfo
 	{
 		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-		.queueFamilyIndex = InContext->graphicsQueueIndex
+		.queueFamilyIndex = Context->graphicsQueueIndex
 	};
 
-	commandPool = vk::raii::CommandPool(InContext->logicalDevice, commandPoolCreateInfo);
+	commandPool = vk::raii::CommandPool(Context->logicalDevice, commandPoolCreateInfo);
 }
 
-void Vk_Commands::CreateCommandBuffers(Vk_Context* InContext)
+void Vk_Commands::CreateCommandBuffers()
 {
 	vk::CommandBufferAllocateInfo commandBufferAllocateInfo{
 		.commandPool = commandPool,
@@ -42,10 +48,10 @@ void Vk_Commands::CreateCommandBuffers(Vk_Context* InContext)
 	};
 
 	// zapis poniżej zwraca nam kolekcję command buffers, natomiast:
-	commandBuffers = vk::raii::CommandBuffers(InContext->logicalDevice, commandBufferAllocateInfo);
+	commandBuffers = vk::raii::CommandBuffers(Context->logicalDevice, commandBufferAllocateInfo);
 }
 
-void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline, Vk_Buffers* InBuffers,Vk_ProfilerGPU* InProfiler)
+void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex)
 {
 	//vk::CommandBufferBeginInfo beginInfo{
 	//	.flags = 
@@ -58,18 +64,24 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	// commandBuffer.begin(beginInfo); <- tak na prawdę nie potrzebujemy teraz żadnej z tych flag - i beginInfo nie jest nam potrzebne teraz
 	auto& commandBuffer = commandBuffers[frameIndex];
 	commandBuffer.begin({}); // rozpoczynamy recording <- jesli command buffer został nagrany, to kolejne wywołanie begin resetuje go. Nie jest możliwe dodawanie instrukcji do istniejącego command buffera
-	InProfiler->BeginFrame(commandBuffer,frameIndex);
+	Profiler->BeginFrame(commandBuffer,frameIndex);
 
 	// Przed renderowaniem, przetransformować swap chain image do vk::ImageLayout::eColorAttachmentOptimal
-	TransitionImageLayout(imageIndex, frameIndex,vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
-		{}, vk::AccessFlagBits2::eColorAttachmentWrite,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		InSwapChain);
+	TransitionImageLayout(
+		imageIndex, 
+		frameIndex,
+		vk::ImageLayout::eUndefined, 
+		vk::ImageLayout::eColorAttachmentOptimal,
+		{},
+		vk::AccessFlagBits2::eColorAttachmentWrite,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput, 
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput
+	);
 
 	// Po zrobionej tranzycji do eColorAttachmentOptimal tworzymy color attachment
 	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
 	vk::RenderingAttachmentInfo attachmentInfo = {
-		.imageView = InSwapChain->swapChainImageViews[imageIndex],
+		.imageView = SwapChain->swapChainImageViews[imageIndex],
 		.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
 		.loadOp = vk::AttachmentLoadOp::eClear,    // <- co zrobić z obrazem przed renderowaniem
 		.storeOp = vk::AttachmentStoreOp::eStore,  // <- co zrobić z obrazem po renderowaniu  ( store czyli zachowujemy do późńiejszego użycia )
@@ -77,33 +89,33 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	};
 
 	vk::RenderingInfo renderingInfo = {
-		.renderArea = {.offset = {0, 0}, .extent = InSwapChain->swapChainExtent},
+		.renderArea = {.offset = {0, 0}, .extent = SwapChain->swapChainExtent},
 		.layerCount = 1,
 		.colorAttachmentCount = 1,
 		.pColorAttachments = &attachmentInfo
 	};
 
 	commandBuffer.beginRendering(renderingInfo);
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *InPipeline->GetPipeline());
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *Pipeline->GetPipeline());
 	
 	// bindujemy vertex buffer
 	// To puki co zakomentować i zbudować plik slang.spv
-	commandBuffer.bindVertexBuffers(0, **InBuffers->GetVertexBuffer(), {0});
-	commandBuffer.bindIndexBuffer(**InBuffers->GetIndexBuffer(),0,vk::IndexType::eUint16);
+	commandBuffer.bindVertexBuffers(0, **Buffers->GetVertexBuffer(), {0});
+	commandBuffer.bindIndexBuffer(**Buffers->GetIndexBuffer(),0,vk::IndexType::eUint16);
 
 	// uwaga -> robimy -static_cast<float>(InSwapChain->swapChainExtent.height) bo macier perspektywy z biblioteki glm na odwróconą dla OpenGL oś Y
 	commandBuffer.setViewport(
 		0, 
 		vk::Viewport(
 			0.0f, // x
-			static_cast<float>(InSwapChain->swapChainExtent.height),  // y
-			static_cast<float>(InSwapChain->swapChainExtent.width),
-			-static_cast<float>(InSwapChain->swapChainExtent.height), 
+			static_cast<float>(SwapChain->swapChainExtent.height),  // y
+			static_cast<float>(SwapChain->swapChainExtent.width),
+			-static_cast<float>(SwapChain->swapChainExtent.height), 
 			0.0f,
 			1.0f
 		)
 	);
-	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), InSwapChain->swapChainExtent));
+	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), SwapChain->swapChainExtent));
 
 	/*  <- Jako że zaczynamu używać index buffer, to przechodzimy na .drawIndexed(
 	commandBuffer.draw(
@@ -116,9 +128,9 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 	// Bindujemy DesctiptorSets
 	commandBuffers[frameIndex].bindDescriptorSets(
 		vk::PipelineBindPoint::eGraphics,
-		*pipelineLayout,
+		*Pipeline->GetPipelineLayout(),
 		0,
-		*(*descriptorSets)[frameIndex],
+		*(*DescriptorSets)[frameIndex],
 		nullptr
 	);
 
@@ -141,18 +153,22 @@ void Vk_Commands::RecordCommandBuffer(uint32_t imageIndex,uint32_t frameIndex, V
 		vk::ImageLayout::ePresentSrcKHR,
 		vk::AccessFlagBits2::eColorAttachmentWrite, {},
 		vk::PipelineStageFlagBits2::eColorAttachmentOutput, 
-		vk::PipelineStageFlagBits2::eBottomOfPipe,
-		InSwapChain
+		vk::PipelineStageFlagBits2::eBottomOfPipe
 	);
 
-	InProfiler->EndFrame(commandBuffer, frameIndex);
+	Profiler->EndFrame(commandBuffer, frameIndex);
 	commandBuffer.end();
 }
 
-void Vk_Commands::TransitionImageLayout(uint32_t imageIndex, uint32_t frameIndex,vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
-	vk::AccessFlags2 srcAccessMask, vk::AccessFlags2 dstAccessMask,
-	vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask,
-	Vk_SwapChain* InSwapChain)
+void Vk_Commands::TransitionImageLayout(
+	uint32_t imageIndex,
+	uint32_t frameIndex,vk::ImageLayout oldLayout,
+	vk::ImageLayout newLayout,
+	vk::AccessFlags2 srcAccessMask,
+	vk::AccessFlags2 dstAccessMask,
+	vk::PipelineStageFlags2 srcStageMask,
+	vk::PipelineStageFlags2 dstStageMask
+)
 {
 	vk::ImageMemoryBarrier2 barrier = {
 		.srcStageMask = srcStageMask,
@@ -163,7 +179,7 @@ void Vk_Commands::TransitionImageLayout(uint32_t imageIndex, uint32_t frameIndex
 		.newLayout = newLayout,
 		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		.image = InSwapChain->swapChainImages[imageIndex],
+		.image = SwapChain->swapChainImages[imageIndex],
 		.subresourceRange = {
 			.aspectMask = vk::ImageAspectFlagBits::eColor,
 			.baseMipLevel = 0,

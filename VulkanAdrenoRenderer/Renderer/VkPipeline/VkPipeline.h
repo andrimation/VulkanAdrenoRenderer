@@ -19,7 +19,7 @@ public:
 		SwapChain = InSwapChain;
 		descriptorSetLayout = InDescriptorSetLayout;
 
-		CreateGraphicsPipeline(InContext, InWindow, InSwapChain);
+		CreateGraphicsPipeline();
 	};
 
 	vk::raii::Pipeline* GetPipeline()
@@ -33,11 +33,11 @@ public:
 	}
 
 private:
-	void CreateGraphicsPipeline(Vk_Context* InContext, WindowGLFW* InWindow, Vk_SwapChain* InSwapChain);
+	void CreateGraphicsPipeline();
 	static std::vector<uint32_t> ReadFile(const std::string& filename);
 
 	[[nodiscard]]
-	vk::raii::ShaderModule CreateShaderModule(const std::vector<uint32_t>& shaderBytes,Vk_Context* InContext);
+	vk::raii::ShaderModule CreateShaderModule(const std::vector<uint32_t>& shaderBytes);
 
 	Vk_Context* Context;
 	WindowGLFW* Window;

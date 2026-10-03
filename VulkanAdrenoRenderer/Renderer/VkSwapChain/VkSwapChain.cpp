@@ -3,22 +3,22 @@
 #include "../GLFWWindow/WindowGLFW.h"
 #include <iostream>
 
-void Vk_SwapChain::CreateSwapChain(Vk_Context* InContext, WindowGLFW* InWindow)
+void Vk_SwapChain::CreateSwapChain()
 {
 	// to nam zwraca dostępne dla surface formaty ( pixel format, color space )
-	std::vector<vk::SurfaceFormatKHR> availableFormats = InContext->physicalDevice.getSurfaceFormatsKHR(*InContext->surface);
+	std::vector<vk::SurfaceFormatKHR> availableFormats = Context->physicalDevice.getSurfaceFormatsKHR(*Context->surface);
 
 	// dostępne present modes ( presentation mode - czyli warunki/sposoby "swapowania" obrazów na ekranie )
 	// PresentationMode jest prawdopodobnie najważniejszym settingsem dla SwapChain
-	std::vector<vk::PresentModeKHR> availablePresentModes = InContext->physicalDevice.getSurfacePresentModesKHR(*InContext->surface);
+	std::vector<vk::PresentModeKHR> availablePresentModes = Context->physicalDevice.getSurfacePresentModesKHR(*Context->surface);
 
 	// Niżej będą funkcje, które sprawdzają czy wybrane przez nas ustawienia są dostępne, a jeśli nie to szuka innych najlepszych dostępnych
 	swapChainSurfaceFormat = ChooseSwapChainSurfaceFormat(availableFormats);
 	vk::PresentModeKHR   presentMode = ChooseSwapPresentMode(availablePresentModes);
 
 	// surface capabilities zwraca nam podstawowe możliwości powierzchni (max ilość obrazów w swap chain i ich max wymiary)
-	vk::SurfaceCapabilitiesKHR surfaceCapabilities = InContext->physicalDevice.getSurfaceCapabilitiesKHR(*InContext->surface);
-	swapChainExtent = ChooseSwapChainExtent(surfaceCapabilities,InWindow);
+	vk::SurfaceCapabilitiesKHR surfaceCapabilities = Context->physicalDevice.getSurfaceCapabilitiesKHR(*Context->surface);
+	swapChainExtent = ChooseSwapChainExtent(surfaceCapabilities);
 
 	// generalnie jest określone minimum swap chain images dla danej implementacji
 	surfaceCapabilities.minImageCount;  // warto jednak mieć więcej images we swap chain niż minimum - jednocześnie musimy mieć na uwadze aby nie przekroczyć maksymalnej liczby obrazów we swap chainie
@@ -27,7 +27,7 @@ void Vk_SwapChain::CreateSwapChain(Vk_Context* InContext, WindowGLFW* InWindow)
 	std::cout << "SwapChainImageCount =  " << swapChainImageCount << "\n";
 
 	vk::SwapchainCreateInfoKHR swapChainCreateInfo{
-		.surface = *InContext->surface,
+		.surface = *Context->surface,
 		.minImageCount = swapChainImageCount,
 		.imageFormat = swapChainSurfaceFormat.format,
 		.imageColorSpace = swapChainSurfaceFormat.colorSpace,
@@ -43,7 +43,7 @@ void Vk_SwapChain::CreateSwapChain(Vk_Context* InContext, WindowGLFW* InWindow)
 		// chaina, możemy podać aktualny swapChain jako .oldSwapChain ( ok ale w tym momencie nie do końca to kminie )
 	};
 
-	swapChain = vk::raii::SwapchainKHR(InContext->logicalDevice, swapChainCreateInfo);
+	swapChain = vk::raii::SwapchainKHR(Context->logicalDevice, swapChainCreateInfo);
 	swapChainImages = swapChain.getImages();
 }
 
@@ -73,7 +73,7 @@ vk::PresentModeKHR Vk_SwapChain::ChooseSwapPresentMode(std::vector<vk::PresentMo
 	? vk::PresentModeKHR::eMailbox : vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D Vk_SwapChain::ChooseSwapChainExtent(vk::SurfaceCapabilitiesKHR const& capabilities, WindowGLFW* InWindow)
+vk::Extent2D Vk_SwapChain::ChooseSwapChainExtent(vk::SurfaceCapabilitiesKHR const& capabilities)
 {
 	// To jest normalny przypadek - jako Extent2D zwracamy rozmiar okna
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -84,7 +84,7 @@ vk::Extent2D Vk_SwapChain::ChooseSwapChainExtent(vk::SurfaceCapabilitiesKHR cons
 	// Niektóre menedżery okien pozwalają na zmianę rozdzielczości, co sygnalizują ustawiając rozmiar SurfaceCapabilitiesKHR na std::numeric_limits<uint32_t>::max()
 	// w takim przypadku pobieramy faktyczny rozmiaz z frame buffera glfw -
 	int width, height;
-	glfwGetFramebufferSize(InWindow->window, &width, &height);
+	glfwGetFramebufferSize(Window->window, &width, &height);
 
 	// jak pobierzemy fasktyczne rozmiary z frame buffera, to clampujemy je - jeśli np rozmiar jest mniejszy niż minImageExtent - to zwracamy minImageExtend
 	// jeśli większy niż maxImageExtent - to analogicznie zwracamy maxImageExtent
@@ -116,7 +116,7 @@ void Vk_SwapChain::CleanupSwapChain()
 	swapChain = nullptr;
 }
 
-void Vk_SwapChain::CreateImageViews(Vk_Context* InContext)
+void Vk_SwapChain::CreateImageViews()
 {
 	assert(swapChainImageViews.empty());
 
@@ -150,6 +150,6 @@ void Vk_SwapChain::CreateImageViews(Vk_Context* InContext)
 	{
 		imageViewCreateInfo.image = image;
 		// zmieniamy imageViewCreateInfo.image dla każdego Image i z tak zmienionymCreate info ( przypisanym do danego image ), tworzymy ImageView
-		swapChainImageViews.emplace_back(InContext->logicalDevice, imageViewCreateInfo);
+		swapChainImageViews.emplace_back(Context->logicalDevice, imageViewCreateInfo);
 	}
 }

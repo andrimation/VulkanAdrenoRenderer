@@ -122,10 +122,10 @@ void Vk_Context::CreateInstance()
 	*/
 }
 
-void Vk_Context::CreateSurface(WindowGLFW* InWindow)
+void Vk_Context::CreateSurface()
 {
 	VkSurfaceKHR _surface;  
-	if (glfwCreateWindowSurface(*instance, InWindow->window, nullptr, &_surface) != 0)
+	if (glfwCreateWindowSurface(*instance, Window->window, nullptr, &_surface) != 0)
 	{
 		throw std::runtime_error("Failed to create window surface");
 	}

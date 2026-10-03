@@ -17,19 +17,34 @@ public:
 		Vk_Context* InContext, 
 		Vk_SwapChain* InSwapChain, 
 		Vk_Buffers* InVertexBuffer,
-		vk::raii::PipelineLayout* InPipelineLayout, 
-		std::vector<vk::raii::DescriptorSet>* InDescriptorSets
+		Vk_Pipeline* InPipeline,
+		std::vector<vk::raii::DescriptorSet>* InDescriptorSets,
+		Vk_ProfilerGPU* InProfiler
 	);
 
-	void RecordCommandBuffer(uint32_t imageIndex, uint32_t frameIndex, Vk_SwapChain* InSwapChain, Vk_Pipeline* InPipeline,Vk_Buffers* InBuffers,Vk_ProfilerGPU* InProfiler);
+	void RecordCommandBuffer(uint32_t imageIndex, uint32_t frameIndex);
 
 private:
-	void CreateCommandPool(Vk_Context* InContext);
-	void CreateCommandBuffers(Vk_Context* InContext);
-	void TransitionImageLayout(uint32_t imageIndex, uint32_t frameIndex,vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
-		vk::AccessFlags2 srcAccessMask, vk::AccessFlags2 dstAccessMask,
-		vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask,
-		Vk_SwapChain* InSwapChain);
+	void CreateCommandPool();
+	void CreateCommandBuffers();
+	void TransitionImageLayout(
+		uint32_t imageIndex, 
+		uint32_t frameIndex,
+		vk::ImageLayout oldLayout, 
+		vk::ImageLayout newLayout,
+		vk::AccessFlags2 srcAccessMask, 
+		vk::AccessFlags2 dstAccessMask,
+		vk::PipelineStageFlags2 srcStageMask, 
+		vk::PipelineStageFlags2 dstStageMask
+	);
+
+	Vk_Context* Context;
+	Vk_SwapChain* SwapChain;
+	Vk_Buffers* Buffers;
+	Vk_Pipeline* Pipeline;
+	std::vector<vk::raii::DescriptorSet>* DescriptorSets;
+
+	Vk_ProfilerGPU* Profiler;
 
 public:
 
@@ -37,6 +52,4 @@ public:
 	vk::raii::CommandPool commandPool = nullptr;
 	std::vector<vk::raii::CommandBuffer> commandBuffers;
 
-	vk::raii::PipelineLayout* pipelineLayout;
-	std::vector<vk::raii::DescriptorSet>* descriptorSets;
 };

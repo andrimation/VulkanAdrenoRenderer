@@ -13,24 +13,34 @@ public:
 
 	void InitVkSwapChain(Vk_Context* InContext,WindowGLFW* InWindow)
 	{
-		CreateSwapChain(InContext,InWindow);
-		CreateImageViews(InContext);
+		Context = InContext;
+		Window = InWindow;
+		Init();
 	};
 
-	void RecreateVkSwapChain(Vk_Context* InContext, WindowGLFW* InWindow)
+	void Init()
+	{
+		CreateSwapChain();
+		CreateImageViews();
+	}
+
+	void RecreateVkSwapChain()
 	{
 		CleanupSwapChain();
-		InitVkSwapChain(InContext, InWindow);
+		Init();
 	};
 
 private:
-	void CreateSwapChain(Vk_Context* InContext, WindowGLFW* InWindow);
-	void CreateImageViews(Vk_Context* InContext);
+	void CreateSwapChain();
+	void CreateImageViews();
 	void CleanupSwapChain();
 	vk::SurfaceFormatKHR ChooseSwapChainSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const& availableFormats);
 	vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const& availablePresentModes);
-	vk::Extent2D ChooseSwapChainExtent(vk::SurfaceCapabilitiesKHR const& capabilities, WindowGLFW* InWindow);
+	vk::Extent2D ChooseSwapChainExtent(vk::SurfaceCapabilitiesKHR const& capabilities);
 	uint32_t ChooseSwapChainMinImageCount(vk::SurfaceCapabilitiesKHR const& capabilities);
+
+	Vk_Context* Context;
+	WindowGLFW* Window;
 
 
 public:

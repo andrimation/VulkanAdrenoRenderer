@@ -11,8 +11,10 @@ public:
 
 	void InitVkContext(WindowGLFW* InWindow)
 	{
+		Window = InWindow;
+
 		CreateInstance();
-		CreateSurface(InWindow);
+		CreateSurface();
 		PickPhysicalDevice();
 		CreateLogicalDevice();
 	}
@@ -20,13 +22,15 @@ public:
 private:
 
 	void CreateInstance();
-	void CreateSurface(WindowGLFW* InWindow);
+	void CreateSurface();
 	void PickPhysicalDevice();
 	void CreateLogicalDevice();
 
 	std::vector<const char*> GetRequiredInstanceExtensions();
 	bool IsDeviceSuitable(vk::raii::PhysicalDevice const& InPhysicalDevice);  
 	vk::raii::PhysicalDevice* ChoosePhysicalDeviceByScore(std::vector<vk::raii::PhysicalDevice>& physicalDevices);
+
+	WindowGLFW* Window;
 
 public:
 	vk::raii::Context context;

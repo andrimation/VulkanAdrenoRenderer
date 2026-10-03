@@ -45,8 +45,15 @@ public:
 		vk::raii::Queue* InGraphicsQueue = nullptr
 	)
 	{
-		CreateBuffers(InLogicalDevice,InPhysicalDevice,InUploadMode, InCommandPool, InGraphicsQueue);
-		CreateUniformBuffers(InMaxFramesInFlight,InLogicalDevice, InPhysicalDevice);
+		LogicalDevice = InLogicalDevice;
+		PhysicalDevice = InPhysicalDevice;
+		MaxFramesInFlight = InMaxFramesInFlight;
+		UploadMode = InUploadMode;
+		CommandPool = InCommandPool;
+		GraphicsQueue = InGraphicsQueue;
+
+		CreateBuffers();
+		CreateUniformBuffers();
 	};
 
 	vk::raii::Buffer* GetVertexBuffer() { return &vertexBuffer; };
@@ -59,38 +66,20 @@ public:
 
 private:
 
-	void CreateBuffers(vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice, EBufferDataUploadMode InUploadMode, vk::raii::CommandPool* InCommandPool, vk::raii::Queue* InGraphicsQueue);
+	void CreateBuffers();		
+	void CreateUsingDirectBuffer(vk::BufferUsageFlagBits InBufferUsage);
+	void CreateUsingStagingBuffer(vk::BufferUsageFlagBits InBufferUsage);
 		
-	void CreateUsingDirectBuffer(
-		vk::BufferUsageFlagBits InBufferUsage,
-		vk::raii::Device* InDevice,
-		vk::raii::PhysicalDevice* InPhysicalDevice
-	);
+	std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> CreateBuffer(uint32_t InBufferSize, vk::BufferUsageFlags InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties);
 
-	void CreateUsingStagingBuffer(
-		vk::BufferUsageFlagBits InBufferUsage,
-		vk::raii::Device* InDevice,
-		vk::raii::PhysicalDevice* InPhysicalDevice,
-		vk::raii::CommandPool* InCommandPool, 
-		vk::raii::Queue* InGraphicsQueue
-	);
-		
-	std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> CreateBuffer(
-		vk::raii::Device* InDevice,
-		vk::raii::PhysicalDevice* InPhysicalDevice,
-		uint32_t InBufferSize,
-		vk::BufferUsageFlags InBufferUsage,
-		vk::MemoryPropertyFlags InMemoryProperties
-	);
-
-	void CreateUniformBuffers(uint32_t InMaxFramesInFlight, vk::raii::Device* InDevice, vk::raii::PhysicalDevice* InPhysicalDevice);
+	void CreateUniformBuffers();
 
 	uint32_t GetBufferMemorySize(vk::BufferUsageFlagBits InBufferUsage);
 	const void* FindDataSourceToCopy(vk::BufferUsageFlagBits InBufferUsage);
 	void CopyVerticesToBuffer(vk::raii::DeviceMemory& InDestBufferMemory,const void* InDataSource, uint32_t InMemoryToMapSize);
-	void CopyBuffer(vk::raii::Device* InLogicalDevice,vk::raii::Buffer* InSrcBuffer, vk::raii::Buffer* InDstBuffer, uint32_t Size,vk::raii::CommandPool* InCommandPool,vk::raii::Queue* InGraphicsQueue);
+	void CopyBuffer(vk::raii::Buffer* InSrcBuffer, vk::raii::Buffer* InDstBuffer, uint32_t Size);
 
-	uint32_t FindMemoryTypeIndex(vk::raii::PhysicalDevice* InPhysicalDevice, uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties);  // <- generalnie GPU oferują różne typy pamięci, o różnej wydajności i zastosowaniach - musimy znaleźć właściwy
+	uint32_t FindMemoryTypeIndex(uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties);  // <- generalnie GPU oferują różne typy pamięci, o różnej wydajności i zastosowaniach - musimy znaleźć właściwy
 	
 	// Buffers and Buffers Memory
 	struct BufferStorage  // helper struct to assign proper buffer and buffer memory, depending on creating buffer type
@@ -100,6 +89,13 @@ private:
 	};
 
 	Vk_Buffers::BufferStorage GetBufferStorage(vk::BufferUsageFlagBits InBufferUsage);
+
+	vk::raii::Device* LogicalDevice;
+	vk::raii::PhysicalDevice* PhysicalDevice;
+	uint32_t MaxFramesInFlight;
+	EBufferDataUploadMode UploadMode;
+	vk::raii::CommandPool* CommandPool;
+	vk::raii::Queue* GraphicsQueue;
 
 	vk::raii::Buffer vertexBuffer = nullptr;
 	vk::raii::DeviceMemory vertexBufferMemory = nullptr;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../VulkanCommon.h"
+
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -8,6 +9,9 @@
 
 struct SceneTransformMatrices
 {
+	//glm::vec2 foo;	
+	//alignas(16) glm::mat4 model;   // vec2 jest zalignowane do 8, ale żeby to działało z shaderem, wszustko musi być zalignowane to pamięci podzielnej przez największy z elementów
+	// więc danie alignas przed mat4 powoduje że cała struktura będzie zalignowana do 16 - czyli do vec2 dodaje padding 8 czyli [vec2][8][mat4 ( pamięć podzielna przez 16 )]
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 projection;
