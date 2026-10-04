@@ -11,8 +11,9 @@ enum class EBufferType
 
 enum class EBufferDataUploadMode
 {
-	Direct, // <- bezpośredni upload danych do pamięci GPU ( może być wolniejszy, ale może być szybszy dla kart z współdzielonym z CPU ramem )
-	Staging  // <- staging buffer - czyli najpierw kopiujemy dane do bufora w pamięci CPU a następnie do osobnego bufora w pamięci GPU ( może być szybsze dla kart z własnym VRAM )
+	Direct,   // <- bezpośredni upload danych do pamięci GPU ( może być wolniejszy, ale może być szybszy dla kart z współdzielonym z CPU ramem )
+	Staging,  // <- staging buffer - czyli najpierw kopiujemy dane do bufora w pamięci CPU a następnie do osobnego bufora w pamięci GPU ( może być szybsze dla kart z własnym VRAM )
+	Auto
 };
 
 
@@ -47,10 +48,11 @@ public:
 	{
 		LogicalDevice = InLogicalDevice;
 		PhysicalDevice = InPhysicalDevice;
-		MaxFramesInFlight = InMaxFramesInFlight;
-		UploadMode = InUploadMode;
+		MaxFramesInFlight = InMaxFramesInFlight;	
 		CommandPool = InCommandPool;
 		GraphicsQueue = InGraphicsQueue;
+
+		UploadMode = InUploadMode != EBufferDataUploadMode::Auto ? InUploadMode : PickDataUploadMode();
 
 		CreateBuffers();
 		CreateUniformBuffers();
@@ -61,6 +63,8 @@ public:
 	std::vector<vk::raii::Buffer>* GetUniformBuffers() { return &uniformBuffers; };
 	void* GetUniformBufferMapped(uint32_t InIndex)  { return uniformBuffersMapped[InIndex];  };
 
+	std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> CreateBuffer(uint32_t InBufferSize, vk::BufferUsageFlags InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties);
+
 	// UWAGA -> Generalnie istnieje też sposób łączenia bufferów np vertex i index w jeden bufor, żeby było
 	// bardziej cache friendly.
 
@@ -69,8 +73,7 @@ private:
 	void CreateBuffers();		
 	void CreateUsingDirectBuffer(vk::BufferUsageFlagBits InBufferUsage);
 	void CreateUsingStagingBuffer(vk::BufferUsageFlagBits InBufferUsage);
-		
-	std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> CreateBuffer(uint32_t InBufferSize, vk::BufferUsageFlags InBufferUsage, vk::MemoryPropertyFlags InMemoryProperties);
+
 
 	void CreateUniformBuffers();
 
@@ -81,6 +84,9 @@ private:
 
 	uint32_t FindMemoryTypeIndex(uint32_t InTypeFilter, vk::MemoryPropertyFlags InProperties);  // <- generalnie GPU oferują różne typy pamięci, o różnej wydajności i zastosowaniach - musimy znaleźć właściwy
 	
+	// Pick upload Mode
+	EBufferDataUploadMode PickDataUploadMode();
+
 	// Buffers and Buffers Memory
 	struct BufferStorage  // helper struct to assign proper buffer and buffer memory, depending on creating buffer type
 	{
@@ -105,4 +111,9 @@ private:
 	std::vector<vk::raii::Buffer> uniformBuffers;
 	std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
 	std::vector<void*> uniformBuffersMapped;
+
+	// UMA / Integrated GPU memory conditions ( use direct buffer )
+	vk::MemoryPropertyFlags IntegratedGPUMemoryFlags =	vk::MemoryPropertyFlagBits::eDeviceLocal |
+														vk::MemoryPropertyFlagBits::eHostVisible |
+														vk::MemoryPropertyFlagBits::eHostCoherent;
 };

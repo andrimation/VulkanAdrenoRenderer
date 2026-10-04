@@ -36,6 +36,18 @@ add_custom_command(
         "$<TARGET_FILE_DIR:VulkanAdrenoRenderer>"
 )
 
+add_custom_command(
+    TARGET VulkanAdrenoRenderer
+    POST_BUILD
+
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:VulkanAdrenoRenderer>/textures"
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/Renderer/VkTextures/textures/texture.jpg"
+        "$<TARGET_FILE_DIR:VulkanAdrenoRenderer>/textures/texture.jpg"
+)
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET VulkanAdrenoRenderer PROPERTY CXX_STANDARD 20)
 endif()

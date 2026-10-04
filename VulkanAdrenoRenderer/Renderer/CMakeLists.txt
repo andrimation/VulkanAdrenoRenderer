@@ -33,6 +33,8 @@ add_library(VulkanRenderer STATIC
     "VkDescriptors/VkDescriptors.cpp"
     "VkCameraController/VkCameraController.h"
     "VkCameraController/VkCameraController.cpp"
+    "VkTextures/VkTextures.h"
+    "VkTextures/VkTextures.cpp"
 )
 
 target_include_directories(VulkanRenderer 
@@ -86,3 +88,7 @@ add_custom_command(
 add_custom_target(VulkanShaders DEPENDS ${SLANG_SPV})
 
 add_dependencies(VulkanRenderer VulkanShaders)
+
+find_path(STB_INCLUDE_DIRS "stb_image.h")
+
+target_include_directories(VulkanRenderer PUBLIC ${STB_INCLUDE_DIRS})

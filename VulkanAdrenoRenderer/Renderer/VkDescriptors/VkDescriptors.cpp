@@ -16,6 +16,8 @@ void Vk_Descriptors::InitVk_Descriptors(vk::raii::Device* InLogicalDevice, uint3
 
 void Vk_Descriptors::CreateDescriptorSetLayout()
 {
+	// Tu tworzymy jakby opis descriptorSets
+
 	vk::DescriptorSetLayoutBinding uboLayoutBinding{
 		.binding = 0,  // <- ten binding jest dostępny pod indexem 0
 		.descriptorType = vk::DescriptorType::eUniformBuffer, // pod indexem 0 będzie się znajdował uniform buffer
@@ -38,6 +40,8 @@ void Vk_Descriptors::CreateDescriptorSetLayout()
 
 void Vk_Descriptors::CreateDescriptorPool()
 {
+	// Tworzymy pool dla descriptorSets - w pool tyle ile MaxFramesInFlight - czyli de facto jeden descriptorSets per frame in flight
+
 	vk::DescriptorPoolSize poolSize = {
 		.type = vk::DescriptorType::eUniformBuffer,
 		.descriptorCount = MaxFramesInFlight

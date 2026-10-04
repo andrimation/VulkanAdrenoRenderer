@@ -32,6 +32,7 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 #include "VkSceneTransforms/VkSceneTransforms.h"
 #include "VkDescriptors/VkDescriptors.h"
 #include "VkCameraController/VkCameraController.h"
+#include "VkTextures/VkTextures.h"
 
 #include "VkProfiler/VkFrameTimer.h"
 #include "VkProfiler/VkProfilerCPU.h"
@@ -52,7 +53,7 @@ public:
 		VulkanCommands.InitVkCommands(&VulkanContext, &VulkanSwapChain,&VulkanBuffersObject,&VulkanPipeline,VulkanDescriptors.GetDescriptorSets(),&GPUProfiler);
 
 		// Inicjalizując Staging musimy mieć już zainicjalizowane commandPool
-		VulkanBuffersObject.InitVkBuffers(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, MAX_FRAMES_IN_FLIGHT, EBufferDataUploadMode::Direct, &VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
+		VulkanBuffersObject.InitVkBuffers(&VulkanContext.logicalDevice, &VulkanContext.physicalDevice, MAX_FRAMES_IN_FLIGHT, EBufferDataUploadMode::Auto, &VulkanCommands.commandPool, &VulkanContext.graphicsQueue); // <- bufory powinny być utworzone przed RecordCommands - żeby mogły być dostępne w momencie nagrywania command
 
 		// CreateDescriptorSets() musi być wywołane po InitVkBuffers, bo 
 		VulkanDescriptors.CreateDescriptorSets(VulkanBuffersObject.GetUniformBuffers());
@@ -62,6 +63,8 @@ public:
 
 		VulkanSceneTransforms.InitVk_SceneTransforms(VulkanSwapChain.swapChainExtent.width, VulkanSwapChain.swapChainExtent.height);
 		CameraController.Init(Window.window, &VulkanSceneTransforms);
+
+		VulkanTextures.InitVkTextures(&VulkanBuffersObject);
 
 		RunMainLoop();
 	};
@@ -85,6 +88,7 @@ private:
 	Vk_Buffers VulkanBuffersObject;
 	Vk_SceneTransforms VulkanSceneTransforms;
 	Vk_Descriptors VulkanDescriptors;
+	Vk_Textures VulkanTextures;
 
 	// Profilers
 	Vk_FrameTimer FrameTimer;

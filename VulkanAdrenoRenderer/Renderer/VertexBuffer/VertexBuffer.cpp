@@ -1,10 +1,13 @@
 #include "VertexBuffer.h"
 #include "VertexBuffer.h"
+#include <iostream>
+
 #include "../VkSceneTransforms/VkSceneTransforms.h"
 
 
 void Vk_Buffers::CreateBuffers()
 {	
+	// Host To CPU
 	if (UploadMode == EBufferDataUploadMode::Direct)
 	{
 		
@@ -23,8 +26,10 @@ void Vk_Buffers::CreateBuffers()
 
 void Vk_Buffers::CreateUsingDirectBuffer(vk::BufferUsageFlagBits InBufferUsage)
 {
-	vk::BufferUsageFlagBits DirectBufferUsageFlags = InBufferUsage;  // <- czyli że będzie źródłem transferu do GPU
-	vk::MemoryPropertyFlags DirectBufferMemoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- pamięć dostępna dla CPU i GPU (?)
+	// persistently mapped vertex buffer <- rozkminić co to jest i jego synchronizacja z CPU
+
+	vk::BufferUsageFlagBits DirectBufferUsageFlags = InBufferUsage;  // <- czyli że będzie vertex albo index buffer
+	vk::MemoryPropertyFlags DirectBufferMemoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent; // <- pamięć dostępna dla CPU i GPU (?)
 
 	uint32_t BufferMemorySize = GetBufferMemorySize(InBufferUsage);
 	auto [buffer, bufferMemory] = CreateBuffer(BufferMemorySize, DirectBufferUsageFlags, DirectBufferMemoryProperties);
@@ -181,6 +186,32 @@ uint32_t Vk_Buffers::FindMemoryTypeIndex(uint32_t InTypeFilter, vk::MemoryProper
 	}
 
 	throw std::runtime_error("No proper memory found");
+}
+
+EBufferDataUploadMode Vk_Buffers::PickDataUploadMode()
+{
+	const vk::PhysicalDeviceMemoryProperties MemoryProperties = PhysicalDevice->getMemoryProperties();
+	for (uint32_t i = 0; i < MemoryProperties.memoryTypeCount; ++i)
+	{
+		const vk::MemoryType& MemoryType = MemoryProperties.memoryTypes[i];
+
+		std::cout
+			<< "Memory Type " << i
+			<< " Heap: " << MemoryType.heapIndex
+			<< " Flags: "
+			<< vk::to_string(MemoryType.propertyFlags);
+
+		if ((MemoryType.propertyFlags & IntegratedGPUMemoryFlags) == IntegratedGPUMemoryFlags)
+		{
+			std::cout << "\n->  Using Direct vertex & index buffers upload mode !\n";
+			return EBufferDataUploadMode::Direct;
+		}
+
+		std::cout << "\n";		
+
+	}
+	std::cout << "   ->  Using Staging vertex & index buffers upload mode !";
+	return EBufferDataUploadMode::Staging;
 }
 
 Vk_Buffers::BufferStorage Vk_Buffers::GetBufferStorage(vk::BufferUsageFlagBits InBufferUsage)
